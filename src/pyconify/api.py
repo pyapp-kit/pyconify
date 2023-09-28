@@ -179,10 +179,24 @@ def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     return data  # type: ignore
 
 
+def _prefix_name(key: tuple[str, ...]) -> tuple[str, str]:
+    if len(key) == 1:
+        if ":" in key[0]:
+            return tuple(key[0].split(":", maxsplit=1))  # type: ignore
+        else:
+            raise ValueError(
+                "If only one argument is passed, it must be in the format "
+                "'prefix:name'"
+            )
+    elif len(key) == 2:
+        return key  # type: ignore
+    else:
+        raise ValueError("QIconify must be initialized with either 1 or 2 arguments.")
+
+
 @lru_cache(maxsize=None)
 def svg(
-    prefix: str,
-    name: str,
+    *key: str,
     color: str | None = None,
     height: str | int | None = None,
     width: str | int | None = None,
@@ -194,10 +208,9 @@ def svg(
 
     Parameters
     ----------
-    prefix : str
-        Icon set prefix.
-    name : str
-        Icon name.
+    key: str
+        Icon set prefix and name. May be passed as a single string in the format
+        `"prefix:name"` or as two separate strings: `'prefix', 'name'`.
     color : str, optional
         Icon color. Replaces currentColor with specific color, resulting in icon with
         hardcoded palette.
@@ -219,6 +232,7 @@ def svg(
         pixels and icon's group ends up being smaller than actual icon, making it harder
         to align it in design.
     """
+    prefix, name = _prefix_name(key)
     # https://api.iconify.design/fluent-emoji-flat/alarm-clock.svg?height=48&width=48
     query_params = {
         "color": color,
