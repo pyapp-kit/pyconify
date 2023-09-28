@@ -189,7 +189,7 @@ def svg(
     flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
     rotate: str | int | None = None,
     box: bool = False,
-) -> str:
+) -> bytes:
     """Generate SVG for icon.
 
     Parameters
@@ -230,6 +230,24 @@ def svg(
     if box:
         query_params["box"] = 1
     req = requests.get(f"{ROOT}/{prefix}/{name}.svg", params=query_params)
+    req.raise_for_status()
+    return req.content
+
+
+@lru_cache(maxsize=None)
+def css(prefix: str, *icons: str) -> str:
+    # iconSelector or selector. Selector for icon, defaults to ".icon--{prefix}--{name}". Variable "{prefix}" is replaced with icon set prefix, "{name}" with icon name.
+    # commonSelector or common. Common selector for icons, defaults to ".icon--{prefix}". Set it to empty to disable common code (see one of examples below). Variable "{prefix}" is replaced with icon set prefix.
+    # overrideSelector or override. Selector that mixes iconSelector and commonSelector to generate icon specific style that overrides common style. See below. Default value is ".icon--{prefix}.icon--{prefix}--{name}".
+    # pseudoSelector or pseudo, boolean. Set it to true if selector for icon is a pseudo-selector, such as ".icon--{prefix}--{name}::after".
+    # varName or var. Name for variable to use for icon, defaults to "svg" for monotone icons, null for icons with palette. Set to null to disable.
+    # forceSquare or square, boolean. Forces icon to have width of 1em.
+    # color. Sets color for monotone icons. Also renders icons as background images.
+    # mode: "mask" or "background". Forces icon to render as mask image or background image. If not set, mode will be detected from icon content: icons that contain currentColor will be rendered as mask image, other icons as background image.
+    # format. Stylesheet formatting option. Matches options used in Sass. Supported values: "expanded", "compact", "compressed".
+
+    # /mdi.css?icons=account-box,account-cash,account,home
+    req = requests.get(f"{ROOT}/{prefix}.css?icons={','.join(icons)}")
     req.raise_for_status()
     return req.text
 
