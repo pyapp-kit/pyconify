@@ -1,4 +1,4 @@
-"""iconify for python. Universal icon framework"""
+"""iconify for python. Universal icon framework."""
 
 from importlib.metadata import PackageNotFoundError, version
 

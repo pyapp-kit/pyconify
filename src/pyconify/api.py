@@ -61,6 +61,8 @@ if TYPE_CHECKING:
         lastModified: dict[str, datetime]
 
     class IconData(TypedDict, total=False):
+        """Return value of icon_data(prefix, *names)."""
+
         prefix: str
         lastModified: datetime
         aliases: dict[str, str]
@@ -70,6 +72,8 @@ if TYPE_CHECKING:
         not_found: list[str]
 
     class APIv2SearchResponse(TypedDict, total=False):
+        """Return value of search(query)."""
+
         icons: list[str]  # list of prefix:name
         total: int  # Number of results. If same as `limit`, more results are available
         limit: int  # Number of results shown
@@ -78,6 +82,8 @@ if TYPE_CHECKING:
         request: APIv2SearchParams  # Copy of request parameters
 
     class APIv2SearchParams(TypedDict, total=False):
+        """Request parameters for search(query)."""
+
         query: Required[str]  # search string
         limit: int  # maximum number of items in response
         start: int  # start index for results
@@ -88,6 +94,8 @@ if TYPE_CHECKING:
         similar: bool  # include partial matches for words  (default = True)
 
     class APIv3KeywordsResponse(TypedDict, total=False):
+        """Return value of keywords()."""
+
         keyword: str  # one of these two will be there
         prefix: str
         exists: Required[bool]
@@ -223,7 +231,7 @@ def svg(
         query_params["box"] = 1
     req = requests.get(f"{ROOT}/{prefix}/{name}.svg", params=query_params)
     req.raise_for_status()
-    return req.text  # type: ignore
+    return req.text
 
 
 def icon_data(prefix: str, *names: str) -> IconData:
@@ -309,7 +317,9 @@ def search(
     return req.json()  # type: ignore
 
 
-def keywords(prefix: str | None = None, keyword: str | None = None):
+def keywords(
+    prefix: str | None = None, keyword: str | None = None
+) -> APIv3KeywordsResponse:
     """Intended for use in suggesting search queries.
 
     One of prefix or keyword MUST be specified.

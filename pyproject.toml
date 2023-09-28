@@ -17,9 +17,7 @@ description = "iconify for python. Universal icon framework"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "BSD-3-Clause" }
-authors = [
-    { name = "Talley Lambert", email = "talley.lambert@gmail.com" },
-]
+authors = [{ name = "Talley Lambert", email = "talley.lambert@gmail.com" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
@@ -31,7 +29,7 @@ classifiers = [
     # "Typing :: Typed",
 ]
 # add your package dependencies here
-dependencies = []
+dependencies = ["requests"]
 
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 # "extras" (e.g. for `pip install .[test]`)
@@ -43,8 +41,8 @@ dev = [
     "black",
     "ipython",
     "mypy",
-    "pdbpp",  # https://github.com/pdbpp/pdbpp
-    "rich",  # https://github.com/Textualize/rich
+    "pdbpp",   # https://github.com/pdbpp/pdbpp
+    "rich",    # https://github.com/Textualize/rich
     "ruff",
 ]
 
@@ -66,12 +64,12 @@ line-length = 88
 target-version = "py38"
 # https://beta.ruff.rs/docs/rules/
 extend-select = [
-    "E",    # style errors
-    "W",    # style warnings
-    "F",    # flakes
-    "D",    # pydocstyle
-    "I",    # isort
-    "U",    # pyupgrade
+    "E", # style errors
+    "W", # style warnings
+    "F", # flakes
+    "D", # pydocstyle
+    "I", # isort
+    "U", # pyupgrade
     # "S",    # bandit
     "C",    # flake8-comprehensions
     "B",    # flake8-bugbear
