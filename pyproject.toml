@@ -30,7 +30,7 @@ dependencies = ["requests"]
 
 [project.optional-dependencies]
 test = ["pytest", "pytest-cov"]
-dev = ["black", "ipython", "mypy", "pdbpp", "rich", "ruff"]
+dev = ["black", "ipython", "mypy", "pdbpp", "rich", "ruff", "types-requests"]
 
 [project.urls]
 homepage = "https://github.com/pyapp-kit/pyconify"

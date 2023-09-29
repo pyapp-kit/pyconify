@@ -11,12 +11,14 @@ from typing import TYPE_CHECKING, Iterable, Literal, cast, overload
 
 import requests
 
+from ._cache import cache
+
 if TYPE_CHECKING:
     from typing import Callable, TypeVar
 
     F = TypeVar("F", bound=Callable)
 
-    from .types import (
+    from .iconify_types import (
         APIv2CollectionResponse,
         APIv2SearchResponse,
         APIv3KeywordsResponse,
@@ -33,10 +35,11 @@ else:
     from functools import lru_cache
 
 
+
 ROOT = "https://api.iconify.design"
 
 
-@lru_cache(maxsize=None)
+@cache()
 def collections(*prefixes: str) -> dict[str, IconifyInfo]:
     """Return collections where key is icon set prefix, value is IconifyInfo object.
 
@@ -57,7 +60,7 @@ def collections(*prefixes: str) -> dict[str, IconifyInfo]:
     return resp.json()  # type: ignore
 
 
-@lru_cache(maxsize=None)
+@cache()
 def collection(
     prefix: str,
     info: bool = False,
@@ -90,7 +93,7 @@ def collection(
     return content  # type: ignore
 
 
-@lru_cache(maxsize=None)
+@cache()
 def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     """Return last modified date for icon sets.
 
@@ -110,7 +113,7 @@ def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     return resp.json()  # type: ignore
 
 
-@lru_cache(maxsize=None)
+@cache()
 def svg(
     *key: str,
     color: str | None = None,
@@ -169,6 +172,7 @@ def svg(
         query_params["box"] = 1
     resp = requests.get(f"{ROOT}/{prefix}/{name}.svg", params=query_params)
     resp.raise_for_status()
+    print("hi")
     if resp.content == b"404":
         raise requests.HTTPError(f"Icon '{prefix}:{name}' not found.", response=resp)
     return resp.content
@@ -206,7 +210,7 @@ def temp_svg(
     return tmp_name
 
 
-@lru_cache(maxsize=None)
+@cache()
 def css(
     *keys: str,
     selector: str | None = None,
@@ -419,7 +423,7 @@ def keywords(
     return resp.json()  # type: ignore
 
 
-@lru_cache(maxsize=None)
+@cache()
 def iconify_version() -> str:
     """Return version of iconify API.
 
@@ -465,6 +469,8 @@ def _split_prefix_name(
     >>> _split_prefix_name(("mdi:account",))
     ("mdi", "account")
     """
+    if not key:
+        raise ValueError("icon key must be at least one string.")
     if len(key) == 1:
         if ":" in key[0]:
             return tuple(key[0].split(":", maxsplit=1))  # type: ignore
