@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Iterable, Literal, cast, overload
 
 import requests
 
-from ._cache import cache
+from ._cache import svg_cache
 
 if TYPE_CHECKING:
     from typing import Callable, TypeVar
@@ -35,11 +35,10 @@ else:
     from functools import lru_cache
 
 
-
 ROOT = "https://api.iconify.design"
 
 
-@cache()
+@lru_cache(maxsize=None)
 def collections(*prefixes: str) -> dict[str, IconifyInfo]:
     """Return collections where key is icon set prefix, value is IconifyInfo object.
 
@@ -60,7 +59,7 @@ def collections(*prefixes: str) -> dict[str, IconifyInfo]:
     return resp.json()  # type: ignore
 
 
-@cache()
+@lru_cache(maxsize=None)
 def collection(
     prefix: str,
     info: bool = False,
@@ -93,7 +92,7 @@ def collection(
     return content  # type: ignore
 
 
-@cache()
+@lru_cache(maxsize=None)
 def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     """Return last modified date for icon sets.
 
@@ -113,7 +112,7 @@ def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     return resp.json()  # type: ignore
 
 
-@cache()
+@svg_cache
 def svg(
     *key: str,
     color: str | None = None,
@@ -121,7 +120,7 @@ def svg(
     width: str | int | None = None,
     flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
     rotate: Rotation | None = None,
-    box: bool = False,
+    box: bool | None = None,
 ) -> bytes:
     """Generate SVG for icon.
 
@@ -172,7 +171,6 @@ def svg(
         query_params["box"] = 1
     resp = requests.get(f"{ROOT}/{prefix}/{name}.svg", params=query_params)
     resp.raise_for_status()
-    print("hi")
     if resp.content == b"404":
         raise requests.HTTPError(f"Icon '{prefix}:{name}' not found.", response=resp)
     return resp.content
@@ -186,7 +184,7 @@ def temp_svg(
     width: str | int | None = None,
     flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
     rotate: Rotation | None = None,
-    box: bool = False,
+    box: bool | None = None,
     prefix: str | None = None,
     dir: str | None = None,
 ) -> str:
@@ -210,7 +208,7 @@ def temp_svg(
     return tmp_name
 
 
-@cache()
+@lru_cache(maxsize=None)
 def css(
     *keys: str,
     selector: str | None = None,
@@ -423,7 +421,7 @@ def keywords(
     return resp.json()  # type: ignore
 
 
-@cache()
+@lru_cache(maxsize=None)
 def iconify_version() -> str:
     """Return version of iconify API.
 

@@ -2,13 +2,6 @@ import pyconify
 import pytest
 
 
-@pytest.fixture(autouse=True)
-def no_cache(monkeypatch) -> None:
-    from pyconify import _cache
-
-    monkeypatch.setattr(_cache, "db", {})
-
-
 def test_collections() -> None:
     result = pyconify.collections("bi", "fa")
     assert isinstance(result, dict)

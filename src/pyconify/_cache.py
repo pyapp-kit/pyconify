@@ -1,74 +1,81 @@
-import atexit
-import shelve
-from functools import update_wrapper
-from typing import Any, Callable
+from __future__ import annotations
 
-CACHE = "/Users/talley/Desktop/cache"
-db = shelve.open(CACHE)
-atexit.register(db.close)
+import os
+from functools import wraps
+from pathlib import Path
+from typing import TYPE_CHECKING, Callable, Iterator, MutableMapping, TypeVar
 
+if TYPE_CHECKING:
+    from typing_extensions import ParamSpec
 
-def cache(maxsize=None):
-    def decorating_function(user_function):
-        return update_wrapper(_shelve_cache_wrapper(user_function), user_function)
-
-    return decorating_function
+    P = ParamSpec("P")
+    R = TypeVar("R")
 
 
-def _shelve_cache_wrapper(user_function: Callable) -> Callable[..., Any]:
-    sentinel = object()  # unique object used to signal cache misses
-    make_key = _make_key  # build a key from the function arguments
-    cache = db
-    hits = misses = 0
-    cache_get = cache.get  # bound method to lookup a key or return None
+def get_cache_directory(app_name: str = "pyconify") -> Path:
+    if os.name == "posix":
+        # Unix-based systems
+        cache_dir = os.path.expanduser(f"~/.cache/{app_name}")
+    elif os.name == "nt" and (local_app_data := os.environ.get("LOCALAPPDATA")):
+        # Windows
+        cache_dir = os.path.join(local_app_data, app_name)
+    # Fallback to a directory in the user's home directory
+    else:
+        cache_dir = os.path.expanduser(f"~/.{app_name}")
 
-    def wrapper(*args: Any, **kwds: Any) -> Any:
-        # Simple caching without ordering or size limit
-        nonlocal hits, misses
-        key = make_key((user_function.__qualname__, *args), kwds)
-        result = cache_get(key, sentinel)
-        if result is not sentinel:
-            hits += 1
+    cache_path = Path(cache_dir)
+    if not cache_path.exists():
+        cache_path.mkdir(parents=True, exist_ok=True)
+    return cache_path
+
+
+class SVGCache(MutableMapping[str, bytes]):
+    def __init__(self, directory: str | Path | None = None) -> None:
+        super().__init__()
+        if not directory:
+            directory = get_cache_directory() / "svg_cache"
+        self._dir = Path(directory).expanduser().resolve()
+        self._dir.mkdir(parents=True, exist_ok=True)
+
+    def __setitem__(self, _key: str, _value: bytes) -> None:
+        self._dir.joinpath(f"{_key}.svg").write_bytes(_value)
+
+    def __getitem__(self, _key: str) -> bytes:
+        try:
+            return self._dir.joinpath(f"{_key}.svg").read_bytes()
+        except FileNotFoundError:
+            raise KeyError(_key) from None
+
+    def __iter__(self) -> Iterator[str]:
+        return map(str, self._dir.glob("*.svg"))
+
+    def __delitem__(self, _key: str) -> None:
+        self._dir.joinpath(f"{_key}.svg").unlink()
+
+    def __len__(self) -> int:
+        return len(list(self._dir.glob("*.svg")))
+
+    def __contains__(self, _key: object) -> bool:
+        return self._dir.joinpath(f"{_key}.svg").exists()
+
+
+def svg_cache(f: Callable[P, bytes]) -> Callable[P, bytes]:
+    try:
+        SVG_DB: MutableMapping[str, bytes] = SVGCache()
+    except OSError:
+        SVG_DB = {}
+
+    @wraps(f)
+    def _inner(*args: P.args, **kwargs: P.kwargs) -> bytes:
+        _keys: tuple = args
+        if kwargs:
+            for item in sorted(kwargs.items()):
+                if item[1] is not None:
+                    _keys += item
+        key = "-".join(map(str, _keys))
+        if key not in SVG_DB:
+            SVG_DB[key] = result = f(*args, **kwargs)
             return result
-        misses += 1
-        result = user_function(*args, **kwds)
-        cache[key] = result
-        return result
+        return SVG_DB[key]
 
-    def cache_info() -> tuple[int, int]:
-        """Report cache statistics."""
-        return (hits, misses)
-
-    def cache_clear() -> None:
-        """Clear the cache and cache statistics."""
-        nonlocal hits, misses
-        cache.clear()
-        hits = misses = 0
-
-    wrapper.cache_info = cache_info
-    wrapper.cache_clear = cache_clear
-    return wrapper
-
-
-def _make_key(args: tuple, kwds: dict[str, Any]) -> str:
-    """Make a cache key from optionally typed positional and keyword arguments.
-
-    The key is constructed in a way that is flat as possible rather than
-    as a nested structure that would take more memory.
-
-    If there is only a single argument and its data type is known to cache
-    its hash value, then that argument is returned without a wrapper.  This
-    saves space and improves lookup speed.
-
-    """
-    # All of code below relies on kwds preserving the order input by the user.
-    # Formerly, we sorted() the kwds before looping.  The new way is *much*
-    # faster; however, it means that f(x=1, y=2) will now be treated as a
-    # distinct call from f(y=2, x=1) which will be cached separately.
-    key = args
-    if kwds:
-        for item in kwds.items():
-            key += item
-    if len(key) == 1 and isinstance(key[0], (int, str)):
-        return str(key[0])
-    return "-".join(map(str, key))
+    return _inner

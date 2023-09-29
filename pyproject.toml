@@ -92,6 +92,7 @@ filterwarnings = ["error"]
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
+show_missing = true
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
