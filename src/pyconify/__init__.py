@@ -8,6 +8,26 @@ except PackageNotFoundError:
     __version__ = "uninstalled"
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
-__all__ = ["svg", "collection", "collections", "icon_data", "search"]
+__all__ = [
+    "collection",
+    "collections",
+    "css",
+    "icon_data",
+    "keywords",
+    "search",
+    "svg",
+    "temp_svg",
+    "iconify_version",
+]
 
-from .api import collection, collections, icon_data, search, svg
+from .api import (
+    collection,
+    collections,
+    css,
+    icon_data,
+    iconify_version,
+    keywords,
+    search,
+    svg,
+    temp_svg,
+)

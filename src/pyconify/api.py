@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+import atexit
+import os
+import tempfile
+from contextlib import suppress
 from functools import lru_cache
 from logging import warn
 from typing import TYPE_CHECKING, Literal, Sequence
@@ -8,99 +11,30 @@ from typing import TYPE_CHECKING, Literal, Sequence
 import requests
 
 if TYPE_CHECKING:
-    from typing import NotRequired, Required, TypedDict
+    from .types import (
+        APIv2CollectionResponse,
+        APIv2SearchResponse,
+        APIv3KeywordsResponse,
+        APIv3LastModifiedResponse,
+        IconifyInfo,
+        IconifyJSON,
+        Rotation,
+    )
 
-    class Author(TypedDict, total=False):
-        """Author information."""
 
-        name: Required[str]  # author name
-        url: NotRequired[str]  # author website
-
-    class License(TypedDict, total=False):
-        """License information."""
-
-        title: Required[str]  # license title
-        spdx: str  # SPDX license ID
-        url: str  # license URL
-
-    class IconifyInfo(TypedDict, total=False):
-        """Icon set information block."""
-
-        name: Required[str]  # icon set name
-        author: Required[Author]  # author info
-        license: Required[License]  # license info
-        total: int  # total number of icons
-        version: str  # version string
-        height: int | list[int]  # Icon grid: number or array of numbers.
-        displayHeight: int  # display height for samples: 16 - 24
-        category: str  # category on Iconify collections list
-        tags: list[str]  # list of tags to group similar icon sets
-        # True if icons have predefined color scheme, false if icons use currentColor.
-        palette: bool  # palette status.
-        hidden: bool  # if true, icon set should not appear in icon sets list
-
-    class APIv2CollectionResponse(TypedDict, total=False):
-        """Object returned from collection(prefix)."""
-
-        prefix: Required[str]  # icon set prefix
-        total: Required[int]  # Number of icons (duplicate of info?.total)
-        title: str  # Icon set title, if available (duplicate of info?.name)
-        info: IconifyInfo  # Icon set info
-        uncategorized: list[str]  # List of icons without categories
-        categories: dict[str, list[str]]  # List of icons, sorted by category
-        hidden: list[str]  # List of hidden icons
-        aliases: dict[str, str]  # List of aliases, key = alias, value = parent icon
-        chars: dict[str, str]  # Characters, key = character, value = icon name
-        # https://iconify.design/docs/types/iconify-json-metadata.html#themes
-        prefixes: dict[str, str]
-        suffixes: dict[str, str]
-
-    class APIv3LastModifiedResponse(TypedDict):
-        """key is icon set prefix, value is lastModified property from that icon set."""
-
-        lastModified: dict[str, datetime]
-
-    class IconData(TypedDict, total=False):
-        """Return value of icon_data(prefix, *names)."""
-
-        prefix: str
-        lastModified: datetime
-        aliases: dict[str, str]
-        width: int
-        height: int
-        icons: dict[str, str]
-        not_found: list[str]
-
-    class APIv2SearchResponse(TypedDict, total=False):
-        """Return value of search(query)."""
-
-        icons: list[str]  # list of prefix:name
-        total: int  # Number of results. If same as `limit`, more results are available
-        limit: int  # Number of results shown
-        start: int  # Index of first result
-        collections: dict[str, IconifyInfo]  # List of icon sets that match query
-        request: APIv2SearchParams  # Copy of request parameters
-
-    class APIv2SearchParams(TypedDict, total=False):
-        """Request parameters for search(query)."""
-
-        query: Required[str]  # search string
-        limit: int  # maximum number of items in response
-        start: int  # start index for results
-        prefix: str  # filter icon sets by one prefix
-        # collection: str  # filter icon sets by one collection
-        prefixes: str  # filter icon sets by multiple prefixes or partial
-        category: str  # filter icon sets by category
-        similar: bool  # include partial matches for words  (default = True)
-
-    class APIv3KeywordsResponse(TypedDict, total=False):
-        """Return value of keywords()."""
-
-        keyword: str  # one of these two will be there
-        prefix: str
-        exists: Required[bool]
-        matches: Required[list[str]]
-        invalid: Literal[True]
+def _split_prefix_name(key: tuple[str, ...]) -> tuple[str, str]:
+    if len(key) == 1:
+        if ":" in key[0]:
+            return tuple(key[0].split(":", maxsplit=1))  # type: ignore
+        else:
+            raise ValueError(
+                "If only one argument is passed, it must be in the format "
+                f"'prefix:name'. got {key[0]!r}"
+            )
+    elif len(key) == 2:
+        return key  # type: ignore
+    else:
+        raise ValueError("QIconify must be initialized with either 1 or 2 arguments.")
 
 
 ROOT = "https://api.iconify.design"
@@ -171,27 +105,7 @@ def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     query_params = {"prefixes": ",".join(prefixes)}
     req = requests.get(f"{ROOT}/last-modified", params=query_params)
     req.raise_for_status()
-    data = req.json()
-    if "lastModified" in data:
-        data["lastModified"] = {
-            k: datetime.utcfromtimestamp(v) for k, v in data["lastModified"].items()
-        }
-    return data  # type: ignore
-
-
-def _prefix_name(key: tuple[str, ...]) -> tuple[str, str]:
-    if len(key) == 1:
-        if ":" in key[0]:
-            return tuple(key[0].split(":", maxsplit=1))  # type: ignore
-        else:
-            raise ValueError(
-                "If only one argument is passed, it must be in the format "
-                "'prefix:name'"
-            )
-    elif len(key) == 2:
-        return key  # type: ignore
-    else:
-        raise ValueError("QIconify must be initialized with either 1 or 2 arguments.")
+    return req.json()  # type: ignore
 
 
 @lru_cache(maxsize=None)
@@ -201,10 +115,15 @@ def svg(
     height: str | int | None = None,
     width: str | int | None = None,
     flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
-    rotate: str | int | None = None,
+    rotate: Rotation | None = None,
     box: bool = False,
 ) -> bytes:
     """Generate SVG for icon.
+
+    Returns a bytes object containing the SVG data: `b'<svg>...</svg>'`
+
+    Example:
+    https://api.iconify.design/fluent-emoji-flat/alarm-clock.svg?height=48&width=48
 
     Parameters
     ----------
@@ -232,8 +151,9 @@ def svg(
         pixels and icon's group ends up being smaller than actual icon, making it harder
         to align it in design.
     """
-    prefix, name = _prefix_name(key)
-    # https://api.iconify.design/fluent-emoji-flat/alarm-clock.svg?height=48&width=48
+    prefix, name = _split_prefix_name(key)
+    if rotate not in (None, 1, 2, 3):
+        rotate = str(rotate).replace("deg", "") + "deg"  # type: ignore
     query_params = {
         "color": color,
         "height": height,
@@ -246,6 +166,38 @@ def svg(
     req = requests.get(f"{ROOT}/{prefix}/{name}.svg", params=query_params)
     req.raise_for_status()
     return req.content
+
+
+@lru_cache(maxsize=None)
+def temp_svg(
+    *key: str,
+    color: str | None = None,
+    height: str | int | None = None,
+    width: str | int | None = None,
+    flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
+    rotate: Rotation | None = None,
+    box: bool = False,
+    prefix=None,
+    dir=None,
+) -> str:
+    """Create a temporary SVG file for `key` for the duration of the session."""
+    svg_bytes = svg(
+        *key, color=color, height=height, width=width, flip=flip, rotate=rotate, box=box
+    )
+
+    if not prefix:
+        prefix = f"pyconify_{'-'.join(key)}".replace(":", "-")
+
+    fd, tmp_name = tempfile.mkstemp(prefix=prefix, suffix=".svg", dir=dir)
+    with os.fdopen(fd, "wb") as f:
+        f.write(svg_bytes)
+
+    @atexit.register
+    def _remove_tmp_svg() -> None:
+        with suppress(FileNotFoundError):
+            os.remove(tmp_name)
+
+    return tmp_name
 
 
 @lru_cache(maxsize=None)
@@ -266,8 +218,13 @@ def css(prefix: str, *icons: str) -> str:
     return req.text
 
 
-def icon_data(prefix: str, *names: str) -> IconData:
-    """Return a dict of icon data where key is icon name and value is icon data.
+def icon_data(prefix: str, *names: str) -> IconifyJSON:
+    """Return icon data for `names` in `prefix`.
+
+    Example:
+    https://api.iconify.design/mdi.json?icons=acount-box,account-cash,account,home
+
+    Missing icons are added to `not_found` property of response.
 
     Parameters
     ----------
@@ -276,8 +233,6 @@ def icon_data(prefix: str, *names: str) -> IconData:
     names : str, optional
         Icon name(s).
     """
-    # https://api.iconify.design/mdi.json?icons=acount-box,account-cash,account,home
-
     req = requests.get(f"{ROOT}/{prefix}.json?icons={','.join(names)}")
     req.raise_for_status()
     if (content := req.json()) == 404:
@@ -294,6 +249,9 @@ def search(
     # similar: bool | None = None,
 ) -> APIv2SearchResponse:
     """Search icons.
+
+    Example:
+    https://api.iconify.design/search?query=arrows-horizontal&limit=999
 
     The Search query can include special keywords.
 
@@ -331,7 +289,6 @@ def search(
     category : str, optional
         Filter icon sets by category.
     """
-    # https://api.iconify.design/search?query=arrows-horizontal&limit=999
     params: dict = {}
     if limit is not None:
         params["limit"] = limit
@@ -381,7 +338,8 @@ def keywords(
     return req.json()  # type: ignore
 
 
-def version() -> str:
+@lru_cache(maxsize=None)
+def iconify_version() -> str:
     """Return version of iconify API."""
     req = requests.get(f"{ROOT}/version")
     req.raise_for_status()
