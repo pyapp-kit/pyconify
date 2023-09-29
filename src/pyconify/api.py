@@ -3,10 +3,10 @@ from __future__ import annotations
 import atexit
 import os
 import tempfile
+import warnings
 from contextlib import suppress
 from functools import lru_cache
-from logging import warn
-from typing import TYPE_CHECKING, Literal, Sequence
+from typing import TYPE_CHECKING, Iterable, Literal, cast, overload
 
 import requests
 
@@ -21,23 +21,48 @@ if TYPE_CHECKING:
         Rotation,
     )
 
+ROOT = "https://api.iconify.design"
 
-def _split_prefix_name(key: tuple[str, ...]) -> tuple[str, str]:
+
+@overload
+def _split_prefix_name(
+    key: tuple[str, ...], allow_many: Literal[False] = ...
+) -> tuple[str, str]:
+    ...
+
+
+@overload
+def _split_prefix_name(
+    key: tuple[str, ...], allow_many: Literal[True]
+) -> tuple[str, tuple[str, ...]]:
+    ...
+
+
+def _split_prefix_name(
+    key: tuple[str, ...], allow_many: bool = False
+) -> tuple[str, str] | tuple[str, tuple[str, ...]]:
+    """Convenience function to split prefix and name from key.
+
+    Examples
+    --------
+    >>> _split_prefix_name(("mdi", "account"))
+    ("mdi", "account")
+    >>> _split_prefix_name(("mdi:account",))
+    ("mdi", "account")
+    """
     if len(key) == 1:
         if ":" in key[0]:
             return tuple(key[0].split(":", maxsplit=1))  # type: ignore
         else:
             raise ValueError(
-                "If only one argument is passed, it must be in the format "
-                f"'prefix:name'. got {key[0]!r}"
+                "Single-argument icon names must be in the format 'prefix:name'. "
+                f"Got {key[0]!r}"
             )
     elif len(key) == 2:
-        return key  # type: ignore
-    else:
-        raise ValueError("QIconify must be initialized with either 1 or 2 arguments.")
-
-
-ROOT = "https://api.iconify.design"
+        return cast("tuple[str, str]", key)
+    elif not allow_many:
+        raise ValueError("icon key must be either 1 or 2 arguments.")
+    return key[0], key[1:]
 
 
 @lru_cache(maxsize=None)
@@ -54,9 +79,9 @@ def collections(*prefixes: str) -> dict[str, IconifyInfo]:
         end with "-", such as "mdi-" matches "mdi-light".
     """
     query_params = {"prefixes": ",".join(prefixes)}
-    req = requests.get(f"{ROOT}/collections", params=query_params)
-    req.raise_for_status()
-    return req.json()  # type: ignore
+    resp = requests.get(f"{ROOT}/collections", params=query_params)
+    resp.raise_for_status()
+    return resp.json()  # type: ignore
 
 
 @lru_cache(maxsize=None)
@@ -83,10 +108,10 @@ def collection(
         query_params["chars"] = 1
     if info:
         query_params["info"] = 1
-    req = requests.get(f"{ROOT}/collection?prefix={prefix}", params=query_params)
-    req.raise_for_status()
-    if (content := req.json()) == 404:
-        raise ValueError(f"Icon set {prefix} not found.")
+    resp = requests.get(f"{ROOT}/collection?prefix={prefix}", params=query_params)
+    resp.raise_for_status()
+    if (content := resp.json()) == 404:
+        raise requests.HTTPError(f"Icon set {prefix!r} not found.", response=resp)
     return content  # type: ignore
 
 
@@ -103,9 +128,9 @@ def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     """
     # https://api.iconify.design/last-modified?prefixes=mdi,mdi-light,tabler
     query_params = {"prefixes": ",".join(prefixes)}
-    req = requests.get(f"{ROOT}/last-modified", params=query_params)
-    req.raise_for_status()
-    return req.json()  # type: ignore
+    resp = requests.get(f"{ROOT}/last-modified", params=query_params)
+    resp.raise_for_status()
+    return resp.json()  # type: ignore
 
 
 @lru_cache(maxsize=None)
@@ -163,9 +188,11 @@ def svg(
     }
     if box:
         query_params["box"] = 1
-    req = requests.get(f"{ROOT}/{prefix}/{name}.svg", params=query_params)
-    req.raise_for_status()
-    return req.content
+    resp = requests.get(f"{ROOT}/{prefix}/{name}.svg", params=query_params)
+    resp.raise_for_status()
+    if resp.content == b"404":
+        raise requests.HTTPError(f"Icon '{prefix}:{name}' not found.", response=resp)
+    return resp.content
 
 
 @lru_cache(maxsize=None)
@@ -194,7 +221,7 @@ def temp_svg(
 
     @atexit.register
     def _remove_tmp_svg() -> None:
-        with suppress(FileNotFoundError):
+        with suppress(FileNotFoundError):  # pragma: no cover
             os.remove(tmp_name)
 
     return tmp_name
@@ -213,9 +240,9 @@ def css(prefix: str, *icons: str) -> str:
     # format. Stylesheet formatting option. Matches options used in Sass. Supported values: "expanded", "compact", "compressed".
 
     # /mdi.css?icons=account-box,account-cash,account,home
-    req = requests.get(f"{ROOT}/{prefix}.css?icons={','.join(icons)}")
-    req.raise_for_status()
-    return req.text
+    resp = requests.get(f"{ROOT}/{prefix}.css?icons={','.join(icons)}")
+    resp.raise_for_status()
+    return resp.text
 
 
 def icon_data(prefix: str, *names: str) -> IconifyJSON:
@@ -233,10 +260,10 @@ def icon_data(prefix: str, *names: str) -> IconifyJSON:
     names : str, optional
         Icon name(s).
     """
-    req = requests.get(f"{ROOT}/{prefix}.json?icons={','.join(names)}")
-    req.raise_for_status()
-    if (content := req.json()) == 404:
-        raise requests.HTTPError(f"No data returned for {prefix!r}", response=req)
+    resp = requests.get(f"{ROOT}/{prefix}.json?icons={','.join(names)}")
+    resp.raise_for_status()
+    if (content := resp.json()) == 404:
+        raise requests.HTTPError(f"No data returned for {prefix!r}", response=resp)
     return content  # type: ignore
 
 
@@ -244,7 +271,7 @@ def search(
     query: str,
     limit: int | None = None,
     start: int | None = None,
-    prefixes: Sequence[str] | None = None,
+    prefixes: Iterable[str] | None = None,
     category: str | None = None,
     # similar: bool | None = None,
 ) -> APIv2SearchResponse:
@@ -283,7 +310,7 @@ def search(
         show.
     start : int, optional
         Start index for results, default is 0.
-    prefixes : str, optional
+    prefixes : str | Iterable[str], optional
         List of icon set prefixes. You can use partial prefixes that
         end with "-", such as "mdi-" matches "mdi-light".
     category : str, optional
@@ -301,9 +328,9 @@ def search(
             params["prefixes"] = ",".join(prefixes)
     if category is not None:
         params["category"] = category
-    req = requests.get(f"{ROOT}/search?query={query}", params=params)
-    req.raise_for_status()
-    return req.json()  # type: ignore
+    resp = requests.get(f"{ROOT}/search?query={query}", params=params)
+    resp.raise_for_status()
+    return resp.json()  # type: ignore
 
 
 def keywords(
@@ -327,20 +354,23 @@ def keywords(
     """
     if prefix:
         if keyword:
-            warn("Both prefix and keyword specified. Ignoring keyword.")
+            warnings.warn(
+                "Cannot specify both prefix and keyword. Ignoring keyword.",
+                stacklevel=2,
+            )
         params = {"prefix": prefix}
     elif keyword:
         params = {"keyword": keyword}
     else:
         params = {}
-    req = requests.get(f"{ROOT}/keywords", params=params)
-    req.raise_for_status()
-    return req.json()  # type: ignore
+    resp = requests.get(f"{ROOT}/keywords", params=params)
+    resp.raise_for_status()
+    return resp.json()  # type: ignore
 
 
 @lru_cache(maxsize=None)
 def iconify_version() -> str:
     """Return version of iconify API."""
-    req = requests.get(f"{ROOT}/version")
-    req.raise_for_status()
-    return req.text
+    resp = requests.get(f"{ROOT}/version")
+    resp.raise_for_status()
+    return resp.text

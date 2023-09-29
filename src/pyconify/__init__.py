@@ -4,7 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("pyconify")
-except PackageNotFoundError:
+except PackageNotFoundError:  # pragma: no cover
     __version__ = "uninstalled"
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
@@ -13,11 +13,12 @@ __all__ = [
     "collections",
     "css",
     "icon_data",
+    "iconify_version",
     "keywords",
+    "last_modified",
     "search",
     "svg",
     "temp_svg",
-    "iconify_version",
 ]
 
 from .api import (
@@ -27,6 +28,7 @@ from .api import (
     icon_data,
     iconify_version,
     keywords,
+    last_modified,
     search,
     svg,
     temp_svg,
