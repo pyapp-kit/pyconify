@@ -25,8 +25,9 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    # "License :: OSI Approved :: BSD License",
-    # "Typing :: Typed",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: BSD License",
+    "Typing :: Typed",
 ]
 # add your package dependencies here
 dependencies = ["requests"]
@@ -50,31 +51,24 @@ dev = [
 homepage = "https://github.com/tlambert03/pyconify"
 repository = "https://github.com/tlambert03/pyconify"
 
-# Entry points
-# https://peps.python.org/pep-0621/#entry-points
-# same as console_scripts entry point
-# [project.scripts]
-# pyconify-cli = "pyconify:main_cli"
-
-# [project.entry-points."some.group"]
-# tomatoes = "pyconify:main_tomatoes"
 # https://github.com/charliermarsh/ruff
 [tool.ruff]
 line-length = 88
 target-version = "py38"
 # https://beta.ruff.rs/docs/rules/
 extend-select = [
-    "E", # style errors
-    "W", # style warnings
-    "F", # flakes
-    "D", # pydocstyle
-    "I", # isort
-    "U", # pyupgrade
-    # "S",    # bandit
+    "E",    # style errors
+    "W",    # style warnings
+    "F",    # flakes
+    "D",    # pydocstyle
+    "I",    # isort
+    "UP",   # pyupgrade
     "C",    # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
     "RUF",  # ruff-specific rules
+    "TCH",
+    "TID",
 ]
 # I do this to get numpy-style docstrings AND retain
 # D417 (Missing argument descriptions in the docstring)
