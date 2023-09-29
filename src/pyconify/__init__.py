@@ -6,6 +6,7 @@ try:
     __version__ = version("pyconify")
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "uninstalled"
+
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
 __all__ = [
