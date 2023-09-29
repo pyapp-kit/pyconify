@@ -47,6 +47,22 @@ def test_css() -> None:
     result = pyconify.css("bi", "alarm")
     assert result.startswith(".icon--bi")
 
+    # FIXME... this isn't returning a valid thingy
+    result2 = pyconify.css(
+        "bi",
+        "alarm",
+        selector=".test",
+        common="common",
+        override="override",
+        pseudo=True,
+        var="asdf",
+        square=True,
+        color="red",
+        mode="mask",
+        format="compact",
+    )
+    assert result2.startswith("common")
+
 
 def test_last_modified() -> None:
     assert isinstance(pyconify.last_modified("bi")["lastModified"]["bi"], int)

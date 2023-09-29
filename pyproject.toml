@@ -100,7 +100,6 @@ exclude_lines = [
     "\\.\\.\\.",
     "raise NotImplementedError()",
 ]
-omit = ["src/pyconify/types.py"]
 
 [tool.coverage.run]
 source = ["pyconify"]

@@ -1,3 +1,5 @@
+"""Wrapper for api calls at https://api.iconify.design/."""
+
 from __future__ import annotations
 
 import atexit
@@ -5,12 +7,15 @@ import os
 import tempfile
 import warnings
 from contextlib import suppress
-from functools import lru_cache
 from typing import TYPE_CHECKING, Iterable, Literal, cast, overload
 
 import requests
 
 if TYPE_CHECKING:
+    from typing import Callable, TypeVar
+
+    F = TypeVar("F", bound=Callable)
+
     from .types import (
         APIv2CollectionResponse,
         APIv2SearchResponse,
@@ -21,53 +26,21 @@ if TYPE_CHECKING:
         Rotation,
     )
 
+    def lru_cache(maxsize: int | None = None) -> Callable[[F], F]:
+        """Dummy lru_cache decorator for type checking."""
+
+else:
+    from functools import lru_cache
+
+
 ROOT = "https://api.iconify.design"
-
-
-@overload
-def _split_prefix_name(
-    key: tuple[str, ...], allow_many: Literal[False] = ...
-) -> tuple[str, str]:
-    ...
-
-
-@overload
-def _split_prefix_name(
-    key: tuple[str, ...], allow_many: Literal[True]
-) -> tuple[str, tuple[str, ...]]:
-    ...
-
-
-def _split_prefix_name(
-    key: tuple[str, ...], allow_many: bool = False
-) -> tuple[str, str] | tuple[str, tuple[str, ...]]:
-    """Convenience function to split prefix and name from key.
-
-    Examples
-    --------
-    >>> _split_prefix_name(("mdi", "account"))
-    ("mdi", "account")
-    >>> _split_prefix_name(("mdi:account",))
-    ("mdi", "account")
-    """
-    if len(key) == 1:
-        if ":" in key[0]:
-            return tuple(key[0].split(":", maxsplit=1))  # type: ignore
-        else:
-            raise ValueError(
-                "Single-argument icon names must be in the format 'prefix:name'. "
-                f"Got {key[0]!r}"
-            )
-    elif len(key) == 2:
-        return cast("tuple[str, str]", key)
-    elif not allow_many:
-        raise ValueError("icon key must be either 1 or 2 arguments.")
-    return key[0], key[1:]
 
 
 @lru_cache(maxsize=None)
 def collections(*prefixes: str) -> dict[str, IconifyInfo]:
     """Return collections where key is icon set prefix, value is IconifyInfo object.
+
+    https://iconify.design/docs/api/collections.html
 
     Parameters
     ----------
@@ -91,6 +64,8 @@ def collection(
     chars: bool = False,
 ) -> APIv2CollectionResponse:
     """Return a list of icons in an icon set.
+
+    https://iconify.design/docs/api/collection.html
 
     Parameters
     ----------
@@ -119,6 +94,8 @@ def collection(
 def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     """Return last modified date for icon sets.
 
+    https://iconify.design/docs/api/last-modified.html
+
     Parameters
     ----------
     prefixes : Sequence[str], optional
@@ -144,6 +121,8 @@ def svg(
     box: bool = False,
 ) -> bytes:
     """Generate SVG for icon.
+
+    https://iconify.design/docs/api/svg.html
 
     Returns a bytes object containing the SVG data: `b'<svg>...</svg>'`
 
@@ -228,16 +207,93 @@ def temp_svg(
 
 
 @lru_cache(maxsize=None)
-def css(prefix: str, *icons: str) -> str:
-    """Return CSS for `icons` in `prefix`."""
-    # /mdi.css?icons=account-box,account-cash,account,home
-    resp = requests.get(f"{ROOT}/{prefix}.css?icons={','.join(icons)}")
+def css(
+    *keys: str,
+    selector: str | None = None,
+    common: str | None = None,
+    override: str | None = None,
+    pseudo: bool | None = None,
+    var: str | None = None,
+    square: bool | None = None,
+    color: str | None = None,
+    mode: Literal["mask", "background"] | None = None,
+    format: Literal["expanded", "compact", "compressed"] | None = None,
+) -> str:
+    """Return CSS for `icons` in `prefix`.
+
+    https://iconify.design/docs/api/css.html
+
+    Iconify API can dynamically generate CSS for icons, where icons are used as
+    background or mask image.
+
+    Example:
+    https://api.iconify.design/mdi.css?icons=account-box,account-cash,account,home
+
+    Parameters
+    ----------
+    keys : str
+        Icon set prefix and name(s). May be passed as a single string in the format
+        `"prefix:name"` or as multiple strings: `'prefix', 'name1', 'name2'`.
+        To generate CSS for icons from multiple icon sets, send separate queries for
+        each icon set.
+    selector : str, optional
+        CSS selector for icons. If not set, defaults to ".icon--{prefix}--{name}"
+        Variable "{prefix}" is replaced with icon set prefix, "{name}" with icon name.
+    common : str, optional
+        Common selector for icons, defaults to ".icon--{prefix}". Set it to empty to
+        disable common code. Variable "{prefix}" is replaced with icon set prefix.
+    override : str, optional
+        Selector that mixes `selector` and `common` to generate icon specific
+        style that overrides common style. Default value is
+        `".icon--{prefix}.icon--{prefix}--{name}"`.
+    pseudo : bool, optional
+         Set it to `True` if selector for icon is a pseudo-selector, such as
+         ".icon--{prefix}--{name}::after".
+    var : str, optional
+        Name for variable to use for icon, defaults to `"svg"` for monotone icons,
+        `None` for icons with palette. Set to null to disable.
+    square : bool, optional
+        Forces icons to have width of 1em.
+    color : str, optional
+        Sets color for monotone icons. Also renders icons as background images.
+    mode : Literal["mask", "background"], optional
+        Forces icon to render as mask image or background image. If not set, mode will
+        be detected from icon content: icons that contain currentColor will be rendered
+        as mask image, other icons as background image.
+    format : Literal["expanded", "compact", "compressed"], optional
+        Stylesheet formatting option. Matches options used in Sass. Supported values
+        are "expanded", "compact" and "compressed".
+    """
+    prefix, icons = _split_prefix_name(keys, allow_many=True)
+    params: dict = {}
+    if selector is not None:
+        params["selector"] = selector
+    if common is not None:
+        params["common"] = common
+    if override is not None:
+        params["override"] = override
+    if pseudo:
+        params["pseudo"] = 1
+    if var is not None:
+        params["var"] = var
+    if square:
+        params["square"] = 1
+    if color is not None:
+        params["color"] = color
+    if mode is not None:
+        params["mode"] = mode
+    if format is not None:
+        params["format"] = format
+
+    resp = requests.get(f"{ROOT}/{prefix}.css?icons={','.join(icons)}", params=params)
     resp.raise_for_status()
     return resp.text
 
 
 def icon_data(prefix: str, *names: str) -> IconifyJSON:
     """Return icon data for `names` in `prefix`.
+
+    https://iconify.design/docs/api/icon-data.html
 
     Example:
     https://api.iconify.design/mdi.json?icons=acount-box,account-cash,account,home
@@ -267,6 +323,8 @@ def search(
     # similar: bool | None = None,
 ) -> APIv2SearchResponse:
     """Search icons.
+
+    https://iconify.design/docs/api/search.html
 
     Example:
     https://api.iconify.design/search?query=arrows-horizontal&limit=999
@@ -329,7 +387,9 @@ def keywords(
 ) -> APIv3KeywordsResponse:
     """Intended for use in suggesting search queries.
 
-    One of prefix or keyword MUST be specified.
+    https://iconify.design/docs/api/keywords.html
+
+    One of `prefix` or `keyword` MUST be specified.
 
     Keyword can only contain letters numbers and dash.
     If it contains "-", only the last part after "-" is used.
@@ -361,7 +421,60 @@ def keywords(
 
 @lru_cache(maxsize=None)
 def iconify_version() -> str:
-    """Return version of iconify API."""
+    """Return version of iconify API.
+
+    https://iconify.design/docs/api/version.html
+
+    The purpose of this query is to be able to tell which server you are connected to,
+    but without exposing actual location of server, which can help debug error.
+    This is used in networks when many servers are running.
+
+    Examples
+    --------
+    >>> iconify_version()
+    'Iconify API version 3.0.0-beta.1'
+    """
     resp = requests.get(f"{ROOT}/version")
     resp.raise_for_status()
     return resp.text
+
+
+@overload
+def _split_prefix_name(
+    key: tuple[str, ...], allow_many: Literal[False] = ...
+) -> tuple[str, str]:
+    ...
+
+
+@overload
+def _split_prefix_name(
+    key: tuple[str, ...], allow_many: Literal[True]
+) -> tuple[str, tuple[str, ...]]:
+    ...
+
+
+def _split_prefix_name(
+    key: tuple[str, ...], allow_many: bool = False
+) -> tuple[str, str] | tuple[str, tuple[str, ...]]:
+    """Convenience function to split prefix and name from key.
+
+    Examples
+    --------
+    >>> _split_prefix_name(("mdi", "account"))
+    ("mdi", "account")
+    >>> _split_prefix_name(("mdi:account",))
+    ("mdi", "account")
+    """
+    if len(key) == 1:
+        if ":" in key[0]:
+            return tuple(key[0].split(":", maxsplit=1))  # type: ignore
+        else:
+            raise ValueError(
+                "Single-argument icon names must be in the format 'prefix:name'. "
+                f"Got {key[0]!r}"
+            )
+    elif len(key) == 2:
+        return cast("tuple[str, str]", key)
+    elif not allow_many:
+        raise ValueError("icon key must be either 1 or 2 arguments.")
+    return key[0], key[1:]
