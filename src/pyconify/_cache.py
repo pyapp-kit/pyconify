@@ -6,17 +6,22 @@ from pathlib import Path
 from typing import Iterator, MutableMapping
 
 _SVG_CACHE: MutableMapping[str, bytes] | None = None
+PYCONIFY_CACHE = os.environ.get("PYCONIFY_CACHE", "")
+DISABLE_CACHE = PYCONIFY_CACHE.lower() in ("0", "false", "no")
 
 
 def svg_cache() -> MutableMapping[str, bytes]:  # pragma: no cover
     """Return a cache for SVG files."""
     global _SVG_CACHE
     if _SVG_CACHE is None:
-        try:
-            _SVG_CACHE = _SVGCache()
-            _delete_stale_svgs()
-        except Exception:
+        if DISABLE_CACHE:
             _SVG_CACHE = {}
+        else:
+            try:
+                _SVG_CACHE = _SVGCache()
+                _delete_stale_svgs()
+            except Exception:
+                _SVG_CACHE = {}
     return _SVG_CACHE
 
 
@@ -35,6 +40,9 @@ def clear_cache() -> None:
 
 def get_cache_directory(app_name: str = "pyconify") -> Path:
     """Return the pyconify svg cache directory."""
+    if PYCONIFY_CACHE:
+        return Path(PYCONIFY_CACHE).expanduser()
+
     if os.name == "posix":
         return Path.home() / ".cache" / app_name
     elif os.name == "nt":

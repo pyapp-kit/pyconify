@@ -1,10 +1,3 @@
-from typing import Iterator
-from unittest.mock import patch
-
-import pytest
-from pyconify import api
-
-
 # @pytest.fixture(autouse=True, scope="session")
 # def no_cache() -> Iterator[None]:
 #     TEST_CACHE: dict = {}

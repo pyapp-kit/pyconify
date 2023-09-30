@@ -59,14 +59,20 @@ See details for each of these results in the [Iconify API documentation](https:/
 ### cache
 
 While the first fetch of any given SVG will require internet access,
-pyconfiy caches svgs for faster retrieval and offline use.  To
+pyconfiy caches svgs for faster retrieval and offline use. To
 see or clear cache directory:
 
 ```python
 import pyconify
 
-pyconify.get_cache_directory()  # reveal location of cache
-pyconify.clear_cache()  # remove the cache directory
+# reveal location of cache
+# will be ~/.cache/pyconify on linux and macos
+# will be %LOCALAPPDATA%\pyconify on windows
+# falls back to ~/.pyconify if none of the above are available
+pyconify.get_cache_directory()
+
+# remove the cache directory (and all its contents)
+pyconify.clear_cache()
 ```
 
 If you'd like to precache a number of svgs, the current recommendation
@@ -83,3 +89,8 @@ for key in ICONS_TO_STORE:
 ```
 
 Later calls to `svg()` will use the cached values.
+
+To specify a custom cache directory, set the `PYCONIFY_CACHE` environment
+variable to your desired directory.
+To disable caching altogether, set the `PYCONIFY_CACHE` environment variable to
+`false` or `0`.
