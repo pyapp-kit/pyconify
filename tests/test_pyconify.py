@@ -65,7 +65,7 @@ def test_css() -> None:
 
 
 def test_last_modified() -> None:
-    assert isinstance(pyconify.last_modified("bi")["lastModified"]["bi"], int)
+    assert isinstance(pyconify.last_modified("bi")["bi"], int)
 
 
 def test_keywords() -> None:

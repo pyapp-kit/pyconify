@@ -5,8 +5,9 @@ import atexit
 import os
 import tempfile
 import warnings
+from pathlib import Path
 from contextlib import suppress
-from typing import TYPE_CHECKING, Iterable, Literal, cast, overload
+from typing import TYPE_CHECKING, Iterable, Literal, overload
 
 import requests
 
@@ -21,7 +22,6 @@ if TYPE_CHECKING:
         APIv2CollectionResponse,
         APIv2SearchResponse,
         APIv3KeywordsResponse,
-        APIv3LastModifiedResponse,
         IconifyInfo,
         IconifyJSON,
         Rotation,
@@ -92,10 +92,13 @@ def collection(
 
 
 @lru_cache(maxsize=None)
-def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
+def last_modified(*prefixes: str) -> dict[str, int]:
     """Return last modified date for icon sets.
 
     https://iconify.design/docs/api/last-modified.html
+
+    Example:
+    https://api.iconify.design/last-modified?prefixes=mdi,mdi-light,tabler
 
     Parameters
     ----------
@@ -103,12 +106,21 @@ def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
         Comma separated list of icon set prefixes. You can use partial prefixes that
         end with "-", such as "mdi-" matches "mdi-light".  If None, return all
         collections.
+
+    Returns
+    -------
+    dict[str, int]
+        Dictionary where key is icon set prefix, value is last modified date as
+        UTC integer timestamp.
     """
-    # https://api.iconify.design/last-modified?prefixes=mdi,mdi-light,tabler
     query_params = {"prefixes": ",".join(prefixes)}
     resp = requests.get(f"{ROOT}/last-modified", params=query_params)
     resp.raise_for_status()
-    return resp.json()  # type: ignore
+    if "lastModified" not in (content := resp.json()):
+        raise ValueError(
+            f"Unexpected response from API: {content}. Expected 'lastModified'."
+        )
+    return content["lastModified"]  # type: ignore
 
 
 # this function uses a special cache inside the body of the function
@@ -159,12 +171,13 @@ def svg(
     # check cache
     _kwargs = locals()
     _kwargs.pop("key")
-    _key = cache_key(key, _kwargs)
+    prefix, name = _split_prefix_name(key)
+
+    _key = cache_key((prefix, name), _kwargs, last_modified().get(prefix, 0))
     cache = svg_cache()
     if _key in cache:
         return cache[_key]
 
-    prefix, name = _split_prefix_name(key)
     if rotate not in (None, 1, 2, 3):
         rotate = str(rotate).replace("deg", "") + "deg"  # type: ignore
     query_params = {
@@ -184,6 +197,37 @@ def svg(
     # cache response and return
     cache[_key] = resp.content
     return resp.content
+
+@lru_cache(maxsize=None)
+def svg_path(
+    *key: str,
+    color: str | None = None,
+    height: str | int | None = None,
+    width: str | int | None = None,
+    flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
+    rotate: Rotation | None = None,
+    box: bool | None = None,
+    prefix: str | None = None,
+    dir: str | None = None,
+) -> Path:
+    """Create a temporary SVG file for `key` for the duration of the session."""
+    svg_bytes = svg(
+        *key, color=color, height=height, width=width, flip=flip, rotate=rotate, box=box
+    )
+
+    if not prefix:
+        prefix = f"pyconify_{'-'.join(key)}".replace(":", "-")
+
+    fd, tmp_name = tempfile.mkstemp(prefix=prefix, suffix=".svg", dir=dir)
+    with os.fdopen(fd, "wb") as f:
+        f.write(svg_bytes)
+
+    @atexit.register
+    def _remove_tmp_svg() -> None:
+        with suppress(FileNotFoundError):  # pragma: no cover
+            os.remove(tmp_name)
+
+    return tmp_name
 
 
 @lru_cache(maxsize=None)
@@ -302,7 +346,7 @@ def css(
     return resp.text
 
 
-def icon_data(prefix: str, *names: str) -> IconifyJSON:
+def icon_data(*keys: str) -> IconifyJSON:
     """Return icon data for `names` in `prefix`.
 
     https://iconify.design/docs/api/icon-data.html
@@ -314,11 +358,13 @@ def icon_data(prefix: str, *names: str) -> IconifyJSON:
 
     Parameters
     ----------
-    prefix : str
-        Icon set prefix.
+    keys : str
+        Icon set prefix and name(s). May be passed as a single string in the format
+        `"prefix:icon"` or as multiple strings: `'prefix', 'icon1', 'icon2'`.
     names : str, optional
         Icon name(s).
     """
+    prefix, names = _split_prefix_name(keys, allow_many=True)
     resp = requests.get(f"{ROOT}/{prefix}.json?icons={','.join(names)}")
     resp.raise_for_status()
     if (content := resp.json()) == 404:
@@ -480,15 +526,16 @@ def _split_prefix_name(
     if not key:
         raise ValueError("icon key must be at least one string.")
     if len(key) == 1:
-        if ":" in key[0]:
-            return tuple(key[0].split(":", maxsplit=1))  # type: ignore
-        else:
+        if ":" not in key[0]:
             raise ValueError(
                 "Single-argument icon names must be in the format 'prefix:name'. "
                 f"Got {key[0]!r}"
             )
-    elif len(key) == 2:
-        return cast("tuple[str, str]", key)
-    elif not allow_many:
-        raise ValueError("icon key must be either 1 or 2 arguments.")
-    return key[0], key[1:]
+        prefix, name = key[0].split(":", maxsplit=1)
+        return (prefix, (name,)) if allow_many else (prefix, name)
+    prefix, *rest = key
+    if not allow_many:
+        if len(rest) > 1:
+            raise ValueError("icon key must be either 1 or 2 arguments.")
+        return prefix, rest[0]
+    return prefix, tuple(rest)

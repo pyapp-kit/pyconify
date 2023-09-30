@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import suppress
 from pathlib import Path
 from typing import Iterator, MutableMapping
 
@@ -13,6 +14,7 @@ def svg_cache() -> MutableMapping[str, bytes]:  # pragma: no cover
     if _SVG_CACHE is None:
         try:
             _SVG_CACHE = _SVGCache()
+            _delete_stale_svgs()
         except Exception:
             _SVG_CACHE = {}
     return _SVG_CACHE
@@ -38,13 +40,14 @@ def get_cache_directory(app_name: str = "pyconify") -> Path:
     return Path.home() / f".{app_name}"  # pragma: no cover
 
 
-def cache_key(args: tuple, kwargs: dict) -> str:
+def cache_key(args: tuple, kwargs: dict, last_modified: int) -> str:
     """Generate a key for the cache based on the function arguments."""
     _keys: tuple = args
     if kwargs:
         for item in sorted(kwargs.items()):
             if item[1] is not None:
                 _keys += item
+    _keys += (last_modified,)
     return "-".join(map(str, _keys))
 
 
@@ -79,3 +82,15 @@ class _SVGCache(MutableMapping[str, bytes]):
 
     def __contains__(self, _key: object) -> bool:
         return self.path.joinpath(f"{_key}{self._extention}").exists()
+
+
+def _delete_stale_svgs() -> None:
+    """Remove all SVG files with an outdated last_modified date from the cache."""
+    from .api import last_modified
+
+    last_modified_dates = last_modified()
+    for key in svg_cache():
+        with suppress(ValueError):
+            prefix, *_, cached_last_mod = key.split("-")
+            if int(cached_last_mod) < last_modified_dates.get(prefix, 0):
+                del svg_cache()[key]
