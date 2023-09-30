@@ -28,5 +28,6 @@ def test_cache(tmp_path: Path) -> None:
 
 
 def test_cache_dir(monkeypatch):
-    monkeypatch.setattr(_cache, "PYCONIFY_CACHE", "/some/path")
-    assert get_cache_directory() == Path("/some/path")
+    some_path = Path("/some/path").expanduser().resolve()
+    monkeypatch.setattr(_cache, "PYCONIFY_CACHE", str(some_path))
+    assert get_cache_directory() == some_path
