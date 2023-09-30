@@ -246,7 +246,7 @@ def svg_path(
 
     # make a temporary file
     file_prefix = f"pyconify_{'-'.join(key)}".replace(":", "-")
-    fd, tmp_name = tempfile.mkstemp(prefix=file_prefix, suffix=".svg", dir=str(dir))
+    fd, tmp_name = tempfile.mkstemp(prefix=file_prefix, suffix=".svg", dir=dir)
     with os.fdopen(fd, "wb") as f:
         f.write(svg_bytes)
 
