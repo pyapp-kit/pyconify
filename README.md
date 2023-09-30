@@ -40,7 +40,7 @@ data = pyconify.icon_data("fa-brands", "python")
 # Get SVG
 svg = pyconify.svg("fa-brands", "python")
 
-# Get SVG as a temporary file for the session
+# Get path to SVG temporary file for the session
 file_name = pyconify.temp_svg("fa-brands", "python")
 
 # Get CSS
@@ -54,3 +54,31 @@ pyconify.iconify_version()
 ```
 
 See details for each of these results in the [Iconify API documentation](https://iconify.design/docs/api/queries.html).
+
+### cache
+
+While the first fetch of any given SVG will require internet access,
+pyconfiy caches svgs for faster retrieval and offline use.  To
+see or clear cache directory:
+
+```python
+import pyconify
+
+pyconify.get_cache_directory()  # reveal location of cache
+pyconify.clear_cache()  # remove the cache directory
+```
+
+If you'd like to precache a number of svgs, the current recommendation
+is to use the `svg()` function:
+
+```python
+import pyconify
+
+import pyconify
+
+ICONS_TO_STORE = {"mdi:bell", "mdi:bell-off", "mdi:bell-outline"}
+for key in ICONS_TO_STORE:
+    pyconify.svg(key)
+```
+
+Later calls to `svg()` will use the cached values.
