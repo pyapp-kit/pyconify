@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pyconify
 import pytest
 
@@ -36,11 +38,17 @@ def test_svg() -> None:
         pyconify.svg("not", "found")
 
 
-def test_tmp_svg() -> None:
-    result = pyconify.temp_svg("bi", "alarm", rotate=90, box=True)
-    assert isinstance(result, str)
-    with open(result, "rb") as f:
-        assert f.read() == pyconify.svg("bi", "alarm", rotate=90, box=True)
+def test_tmp_svg(tmp_path) -> None:
+    result1 = pyconify.svg_path("bi", "alarm", rotate=90, box=True)
+    assert isinstance(result1, Path)
+    assert result1.read_bytes() == pyconify.svg("bi", "alarm", rotate=90, box=True)
+
+    # this one shouldn't be in the cache at this point
+    result2 = pyconify.svg_path("bi", "alarm", rotate=90, box=True, dir=tmp_path)
+    assert isinstance(result2, Path)
+    assert result2.parent == tmp_path
+    assert result2 != result1
+    assert result2.read_bytes() == pyconify.svg("bi", "alarm", rotate=90, box=True)
 
 
 def test_css() -> None:
@@ -65,7 +73,7 @@ def test_css() -> None:
 
 
 def test_last_modified() -> None:
-    assert isinstance(pyconify.last_modified("bi")["lastModified"]["bi"], int)
+    assert isinstance(pyconify.last_modified("bi")["bi"], int)
 
 
 def test_keywords() -> None:

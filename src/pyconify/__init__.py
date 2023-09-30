@@ -21,7 +21,7 @@ __all__ = [
     "last_modified",
     "search",
     "svg",
-    "temp_svg",
+    "svg_path",
 ]
 
 from ._cache import clear_cache, get_cache_directory
@@ -35,5 +35,5 @@ from .api import (
     last_modified,
     search,
     svg,
-    temp_svg,
+    svg_path,
 )
