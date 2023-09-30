@@ -5,15 +5,15 @@ import atexit
 import os
 import tempfile
 import warnings
-from pathlib import Path
 from contextlib import suppress
 from typing import TYPE_CHECKING, Iterable, Literal, overload
 
 import requests
 
-from ._cache import cache_key, svg_cache
+from ._cache import _SVGCache, cache_key, svg_cache
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from typing import Callable, TypeVar
 
     F = TypeVar("F", bound=Callable)
@@ -32,7 +32,6 @@ if TYPE_CHECKING:
 
 else:
     from functools import lru_cache
-
 
 ROOT = "https://api.iconify.design"
 
@@ -169,14 +168,10 @@ def svg(
         to align it in design.
     """
     # check cache
-    _kwargs = locals()
-    _kwargs.pop("key")
-    prefix, name = _split_prefix_name(key)
+    prefix, name, svg_cache_key = _svg_keys(key, locals())
 
-    _key = cache_key((prefix, name), _kwargs, last_modified().get(prefix, 0))
-    cache = svg_cache()
-    if _key in cache:
-        return cache[_key]
+    if svg_cache_key in (cache := svg_cache()):
+        return cache[svg_cache_key]
 
     if rotate not in (None, 1, 2, 3):
         rotate = str(rotate).replace("deg", "") + "deg"  # type: ignore
@@ -195,8 +190,31 @@ def svg(
         raise requests.HTTPError(f"Icon '{prefix}:{name}' not found.", response=resp)
 
     # cache response and return
-    cache[_key] = resp.content
+    cache[svg_cache_key] = resp.content
     return resp.content
+
+
+def _svg_keys(args: tuple, kwargs: dict) -> tuple[str, str, str]:
+    prefix, name = _split_prefix_name(args)
+    last_mod = last_modified().get(prefix, 0)
+    _kwargs = {
+        k: v
+        for k, v in kwargs.items()
+        if k in {"color", "height", "width", "flip", "rotate", "box"}
+    }
+
+    svg_cache_key = cache_key((prefix, name), _kwargs, last_mod)
+    return prefix, name, svg_cache_key
+
+
+def _svg_path(svg_cache_key: str) -> Path | None:
+    """Return path to existing SVG file for `key` or None."""
+    cache = svg_cache()
+    if isinstance(cache, _SVGCache):
+        if (path := cache.path_for(svg_cache_key)) and path.is_file():
+            return path
+    return None
+
 
 @lru_cache(maxsize=None)
 def svg_path(
@@ -207,53 +225,31 @@ def svg_path(
     flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
     rotate: Rotation | None = None,
     box: bool | None = None,
-    prefix: str | None = None,
-    dir: str | None = None,
-) -> Path:
-    """Create a temporary SVG file for `key` for the duration of the session."""
-    svg_bytes = svg(
-        *key, color=color, height=height, width=width, flip=flip, rotate=rotate, box=box
-    )
-
-    if not prefix:
-        prefix = f"pyconify_{'-'.join(key)}".replace(":", "-")
-
-    fd, tmp_name = tempfile.mkstemp(prefix=prefix, suffix=".svg", dir=dir)
-    with os.fdopen(fd, "wb") as f:
-        f.write(svg_bytes)
-
-    @atexit.register
-    def _remove_tmp_svg() -> None:
-        with suppress(FileNotFoundError):  # pragma: no cover
-            os.remove(tmp_name)
-
-    return tmp_name
-
-
-@lru_cache(maxsize=None)
-def temp_svg(
-    *key: str,
-    color: str | None = None,
-    height: str | int | None = None,
-    width: str | int | None = None,
-    flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
-    rotate: Rotation | None = None,
-    box: bool | None = None,
-    prefix: str | None = None,
     dir: str | None = None,
 ) -> str:
-    """Create a temporary SVG file for `key` for the duration of the session."""
+    """Similar to `svg` but returns a path to SVG file for `key`.
+
+    Arguments are the same as for `pyconfify.api.svg` except for `dir` which is the
+    directory to save the SVG file to (it will be passed to `tempfile.mkstemp`).
+    """
+    # first look for SVG file in cache
+    *_, svg_cache_key = _svg_keys(key, locals())
+    if path := _svg_path(svg_cache_key):
+        # if it exists return that string
+        return str(path)
+
+    # otherwise, we need to download it and save it to a temporary file
     svg_bytes = svg(
         *key, color=color, height=height, width=width, flip=flip, rotate=rotate, box=box
     )
 
-    if not prefix:
-        prefix = f"pyconify_{'-'.join(key)}".replace(":", "-")
-
-    fd, tmp_name = tempfile.mkstemp(prefix=prefix, suffix=".svg", dir=dir)
+    # make a temporary file
+    file_prefix = f"pyconify_{'-'.join(key)}".replace(":", "-")
+    fd, tmp_name = tempfile.mkstemp(prefix=file_prefix, suffix=".svg", dir=dir)
     with os.fdopen(fd, "wb") as f:
         f.write(svg_bytes)
 
+    # cleanup the temporary file when the program exits
     @atexit.register
     def _remove_tmp_svg() -> None:
         with suppress(FileNotFoundError):  # pragma: no cover

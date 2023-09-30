@@ -24,9 +24,13 @@ def clear_cache() -> None:
     """Clear the pyconify svg cache."""
     import shutil
 
+    from .api import svg_path
+
     shutil.rmtree(get_cache_directory(), ignore_errors=True)
     global _SVG_CACHE
     _SVG_CACHE = None
+    with suppress(AttributeError):
+        svg_path.cache_clear()  # type: ignore
 
 
 def get_cache_directory(app_name: str = "pyconify") -> Path:
@@ -40,6 +44,10 @@ def get_cache_directory(app_name: str = "pyconify") -> Path:
     return Path.home() / f".{app_name}"  # pragma: no cover
 
 
+# delimiter for the cache key
+DELIM = "_"
+
+
 def cache_key(args: tuple, kwargs: dict, last_modified: int) -> str:
     """Generate a key for the cache based on the function arguments."""
     _keys: tuple = args
@@ -48,7 +56,7 @@ def cache_key(args: tuple, kwargs: dict, last_modified: int) -> str:
             if item[1] is not None:
                 _keys += item
     _keys += (last_modified,)
-    return "-".join(map(str, _keys))
+    return DELIM.join(map(str, _keys))
 
 
 class _SVGCache(MutableMapping[str, bytes]):
@@ -62,26 +70,32 @@ class _SVGCache(MutableMapping[str, bytes]):
         self.path.mkdir(parents=True, exist_ok=True)
         self._extention = ".svg"
 
+    def path_for(self, _key: str) -> Path:
+        return self.path.joinpath(f"{_key}{self._extention}")
+
+    def _svg_files(self) -> Iterator[Path]:
+        yield from self.path.glob(f"*{self._extention}")
+
     def __setitem__(self, _key: str, _value: bytes) -> None:
-        self.path.joinpath(f"{_key}{self._extention}").write_bytes(_value)
+        self.path_for(_key).write_bytes(_value)
 
     def __getitem__(self, _key: str) -> bytes:
         try:
-            return self.path.joinpath(f"{_key}{self._extention}").read_bytes()
+            return self.path_for(_key).read_bytes()
         except FileNotFoundError:
             raise KeyError(_key) from None
 
     def __iter__(self) -> Iterator[str]:
-        yield from (x.stem for x in self.path.glob(f"*{self._extention}"))
+        yield from (x.stem for x in self._svg_files())
 
     def __delitem__(self, _key: str) -> None:
-        self.path.joinpath(f"{_key}{self._extention}").unlink()
+        self.path_for(_key).unlink()
 
     def __len__(self) -> int:
-        return len(list(self.path.glob("*{self._extention}")))
+        return len(list(self._svg_files()))
 
     def __contains__(self, _key: object) -> bool:
-        return self.path.joinpath(f"{_key}{self._extention}").exists()
+        return self.path_for(_key).exists() if isinstance(_key, str) else False
 
 
 def _delete_stale_svgs() -> None:
@@ -91,6 +105,6 @@ def _delete_stale_svgs() -> None:
     last_modified_dates = last_modified()
     for key in svg_cache():
         with suppress(ValueError):
-            prefix, *_, cached_last_mod = key.split("-")
+            prefix, *_, cached_last_mod = key.split(DELIM)
             if int(cached_last_mod) < last_modified_dates.get(prefix, 0):
                 del svg_cache()[key]

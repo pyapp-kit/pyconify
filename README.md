@@ -40,8 +40,9 @@ data = pyconify.icon_data("fa-brands", "python")
 # Get SVG
 svg = pyconify.svg("fa-brands", "python")
 
-# Get path to SVG temporary file for the session
-file_name = pyconify.temp_svg("fa-brands", "python")
+# Get path to SVG on disk
+# will either return cached version, or write to temp file
+file_name = pyconify.svg_path("fa-brands", "python")
 
 # Get CSS
 css = pyconify.css("fa-brands", "python")

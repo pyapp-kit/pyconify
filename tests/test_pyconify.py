@@ -37,7 +37,7 @@ def test_svg() -> None:
 
 
 def test_tmp_svg() -> None:
-    result = pyconify.temp_svg("bi", "alarm", rotate=90, box=True)
+    result = pyconify.svg_path("bi", "alarm", rotate=90, box=True)
     assert isinstance(result, str)
     with open(result, "rb") as f:
         assert f.read() == pyconify.svg("bi", "alarm", rotate=90, box=True)
