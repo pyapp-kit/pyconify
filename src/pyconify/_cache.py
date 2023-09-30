@@ -31,8 +31,12 @@ def get_cache_directory(app_name: str = "pyconify") -> Path:
     """Return the pyconify svg cache directory."""
     if os.name == "posix":
         return Path.home() / ".cache" / app_name
-    elif os.name == "nt" and (local_app_data := os.environ.get("LOCALAPPDATA")):
-        return Path(local_app_data) / app_name
+    elif os.name == "nt":
+        if local_app_data := os.environ.get("LOCALAPPDATA"):
+            return Path(local_app_data) / app_name  # pragma: no cover
+        app_data_path = Path("~/AppData/Local").expanduser()
+        if app_data_path.exists():
+            return app_data_path / app_name
     # Fallback to a directory in the user's home directory
     return Path.home() / f".{app_name}"  # pragma: no cover
 
