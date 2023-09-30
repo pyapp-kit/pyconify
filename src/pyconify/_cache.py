@@ -19,7 +19,7 @@ def svg_cache() -> MutableMapping[str, bytes]:  # pragma: no cover
         else:
             try:
                 _SVG_CACHE = _SVGCache()
-                _delete_stale_svgs()
+                _delete_stale_svgs(_SVG_CACHE)
             except Exception:
                 _SVG_CACHE = {}
     return _SVG_CACHE
@@ -106,13 +106,13 @@ class _SVGCache(MutableMapping[str, bytes]):
         return self.path_for(_key).exists() if isinstance(_key, str) else False
 
 
-def _delete_stale_svgs() -> None:
+def _delete_stale_svgs(cache: MutableMapping) -> None:  # pragma: no cover
     """Remove all SVG files with an outdated last_modified date from the cache."""
     from .api import last_modified
 
     last_modified_dates = last_modified()
-    for key in svg_cache():
+    for key in list(cache):
         with suppress(ValueError):
             prefix, *_, cached_last_mod = key.split(DELIM)
             if int(cached_last_mod) < last_modified_dates.get(prefix, 0):
-                del svg_cache()[key]
+                del cache[key]

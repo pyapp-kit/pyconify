@@ -31,3 +31,9 @@ def test_cache_dir(monkeypatch) -> None:
     some_path = Path("/some/path").expanduser().resolve()
     monkeypatch.setattr(_cache, "PYCONIFY_CACHE", str(some_path))
     assert get_cache_directory() == some_path
+
+
+def test_delete_stale() -> None:
+    cache = {"fa_0": b""}
+    _cache._delete_stale_svgs(cache)
+    assert not cache
