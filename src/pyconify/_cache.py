@@ -1,81 +1,80 @@
 from __future__ import annotations
 
 import os
-from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterator, MutableMapping, TypeVar
+from typing import Iterator, MutableMapping
 
-if TYPE_CHECKING:
-    from typing_extensions import ParamSpec
+_SVG_CACHE: MutableMapping[str, bytes] | None = None
 
-    P = ParamSpec("P")
-    R = TypeVar("R")
+
+def svg_cache() -> MutableMapping[str, bytes]:  # pragma: no cover
+    """Return a cache for SVG files."""
+    global _SVG_CACHE
+    if _SVG_CACHE is None:
+        try:
+            _SVG_CACHE = _SVGCache()
+        except Exception:
+            _SVG_CACHE = {}
+    return _SVG_CACHE
+
+
+def clear_cache() -> None:
+    """Clear the pyconify svg cache."""
+    import shutil
+
+    shutil.rmtree(get_cache_directory(), ignore_errors=True)
+    global _SVG_CACHE
+    _SVG_CACHE = None
 
 
 def get_cache_directory(app_name: str = "pyconify") -> Path:
+    """Return the pyconify svg cache directory."""
     if os.name == "posix":
-        # Unix-based systems
-        cache_dir = os.path.expanduser(f"~/.cache/{app_name}")
+        return Path.home() / ".cache" / app_name
     elif os.name == "nt" and (local_app_data := os.environ.get("LOCALAPPDATA")):
-        # Windows
-        cache_dir = os.path.join(local_app_data, app_name)
+        return Path(local_app_data) / app_name
     # Fallback to a directory in the user's home directory
-    else:
-        cache_dir = os.path.expanduser(f"~/.{app_name}")
-
-    cache_path = Path(cache_dir)
-    if not cache_path.exists():
-        cache_path.mkdir(parents=True, exist_ok=True)
-    return cache_path
+    return Path.home() / f".{app_name}"  # pragma: no cover
 
 
-class SVGCache(MutableMapping[str, bytes]):
+def cache_key(args: tuple, kwargs: dict) -> str:
+    """Generate a key for the cache based on the function arguments."""
+    _keys: tuple = args
+    if kwargs:
+        for item in sorted(kwargs.items()):
+            if item[1] is not None:
+                _keys += item
+    return "-".join(map(str, _keys))
+
+
+class _SVGCache(MutableMapping[str, bytes]):
+    """A simple directory cache for SVG files."""
+
     def __init__(self, directory: str | Path | None = None) -> None:
         super().__init__()
         if not directory:
-            directory = get_cache_directory() / "svg_cache"
-        self._dir = Path(directory).expanduser().resolve()
-        self._dir.mkdir(parents=True, exist_ok=True)
+            directory = get_cache_directory() / "svg_cache"  # pragma: no cover
+        self.path = Path(directory).expanduser().resolve()
+        self.path.mkdir(parents=True, exist_ok=True)
+        self._extention = ".svg"
 
     def __setitem__(self, _key: str, _value: bytes) -> None:
-        self._dir.joinpath(f"{_key}.svg").write_bytes(_value)
+        self.path.joinpath(f"{_key}{self._extention}").write_bytes(_value)
 
     def __getitem__(self, _key: str) -> bytes:
         try:
-            return self._dir.joinpath(f"{_key}.svg").read_bytes()
+            return self.path.joinpath(f"{_key}{self._extention}").read_bytes()
         except FileNotFoundError:
             raise KeyError(_key) from None
 
     def __iter__(self) -> Iterator[str]:
-        return map(str, self._dir.glob("*.svg"))
+        yield from (x.stem for x in self.path.glob(f"*{self._extention}"))
 
     def __delitem__(self, _key: str) -> None:
-        self._dir.joinpath(f"{_key}.svg").unlink()
+        self.path.joinpath(f"{_key}{self._extention}").unlink()
 
     def __len__(self) -> int:
-        return len(list(self._dir.glob("*.svg")))
+        return len(list(self.path.glob("*{self._extention}")))
 
     def __contains__(self, _key: object) -> bool:
-        return self._dir.joinpath(f"{_key}.svg").exists()
-
-
-def svg_cache(f: Callable[P, bytes]) -> Callable[P, bytes]:
-    try:
-        SVG_DB: MutableMapping[str, bytes] = SVGCache()
-    except OSError:
-        SVG_DB = {}
-
-    @wraps(f)
-    def _inner(*args: P.args, **kwargs: P.kwargs) -> bytes:
-        _keys: tuple = args
-        if kwargs:
-            for item in sorted(kwargs.items()):
-                if item[1] is not None:
-                    _keys += item
-        key = "-".join(map(str, _keys))
-        if key not in SVG_DB:
-            SVG_DB[key] = result = f(*args, **kwargs)
-            return result
-        return SVG_DB[key]
-
-    return _inner
+        return self.path.joinpath(f"{_key}{self._extention}").exists()

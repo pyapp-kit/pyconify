@@ -1,5 +1,4 @@
 """Wrapper for api calls at https://api.iconify.design/."""
-
 from __future__ import annotations
 
 import atexit
@@ -11,7 +10,7 @@ from typing import TYPE_CHECKING, Iterable, Literal, cast, overload
 
 import requests
 
-from ._cache import svg_cache
+from ._cache import cache_key, svg_cache
 
 if TYPE_CHECKING:
     from typing import Callable, TypeVar
@@ -112,7 +111,7 @@ def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     return resp.json()  # type: ignore
 
 
-@svg_cache
+# this function uses a special cache inside the body of the function
 def svg(
     *key: str,
     color: str | None = None,
@@ -157,6 +156,14 @@ def svg(
         pixels and icon's group ends up being smaller than actual icon, making it harder
         to align it in design.
     """
+    # check cache
+    _kwargs = locals()
+    _kwargs.pop("key")
+    _key = cache_key(key, _kwargs)
+    cache = svg_cache()
+    if _key in cache:
+        return cache[_key]
+
     prefix, name = _split_prefix_name(key)
     if rotate not in (None, 1, 2, 3):
         rotate = str(rotate).replace("deg", "") + "deg"  # type: ignore
@@ -173,6 +180,9 @@ def svg(
     resp.raise_for_status()
     if resp.content == b"404":
         raise requests.HTTPError(f"Icon '{prefix}:{name}' not found.", response=resp)
+
+    # cache response and return
+    cache[_key] = resp.content
     return resp.content
 
 
