@@ -1,5 +1,4 @@
 """Wrapper for api calls at https://api.iconify.design/."""
-
 from __future__ import annotations
 
 import atexit
@@ -11,12 +10,14 @@ from typing import TYPE_CHECKING, Iterable, Literal, cast, overload
 
 import requests
 
+from ._cache import cache_key, svg_cache
+
 if TYPE_CHECKING:
     from typing import Callable, TypeVar
 
     F = TypeVar("F", bound=Callable)
 
-    from .types import (
+    from .iconify_types import (
         APIv2CollectionResponse,
         APIv2SearchResponse,
         APIv3KeywordsResponse,
@@ -110,7 +111,7 @@ def last_modified(*prefixes: str) -> APIv3LastModifiedResponse:
     return resp.json()  # type: ignore
 
 
-@lru_cache(maxsize=None)
+# this function uses a special cache inside the body of the function
 def svg(
     *key: str,
     color: str | None = None,
@@ -118,7 +119,7 @@ def svg(
     width: str | int | None = None,
     flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
     rotate: Rotation | None = None,
-    box: bool = False,
+    box: bool | None = None,
 ) -> bytes:
     """Generate SVG for icon.
 
@@ -155,6 +156,14 @@ def svg(
         pixels and icon's group ends up being smaller than actual icon, making it harder
         to align it in design.
     """
+    # check cache
+    _kwargs = locals()
+    _kwargs.pop("key")
+    _key = cache_key(key, _kwargs)
+    cache = svg_cache()
+    if _key in cache:
+        return cache[_key]
+
     prefix, name = _split_prefix_name(key)
     if rotate not in (None, 1, 2, 3):
         rotate = str(rotate).replace("deg", "") + "deg"  # type: ignore
@@ -171,6 +180,9 @@ def svg(
     resp.raise_for_status()
     if resp.content == b"404":
         raise requests.HTTPError(f"Icon '{prefix}:{name}' not found.", response=resp)
+
+    # cache response and return
+    cache[_key] = resp.content
     return resp.content
 
 
@@ -182,7 +194,7 @@ def temp_svg(
     width: str | int | None = None,
     flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
     rotate: Rotation | None = None,
-    box: bool = False,
+    box: bool | None = None,
     prefix: str | None = None,
     dir: str | None = None,
 ) -> str:
@@ -465,6 +477,8 @@ def _split_prefix_name(
     >>> _split_prefix_name(("mdi:account",))
     ("mdi", "account")
     """
+    if not key:
+        raise ValueError("icon key must be at least one string.")
     if len(key) == 1:
         if ":" in key[0]:
             return tuple(key[0].split(":", maxsplit=1))  # type: ignore

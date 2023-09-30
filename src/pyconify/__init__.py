@@ -10,9 +10,11 @@ except PackageNotFoundError:  # pragma: no cover
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
 __all__ = [
+    "clear_cache",
     "collection",
     "collections",
     "css",
+    "get_cache_directory",
     "icon_data",
     "iconify_version",
     "keywords",
@@ -22,6 +24,7 @@ __all__ = [
     "temp_svg",
 ]
 
+from ._cache import clear_cache, get_cache_directory
 from .api import (
     collection,
     collections,
