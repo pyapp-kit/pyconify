@@ -27,7 +27,7 @@ def test_cache(tmp_path: Path) -> None:
         cache["not a key"]
 
 
-def test_cache_dir(monkeypatch):
+def test_cache_dir(monkeypatch) -> None:
     some_path = Path("/some/path").expanduser().resolve()
     monkeypatch.setattr(_cache, "PYCONIFY_CACHE", str(some_path))
     assert get_cache_directory() == some_path
