@@ -6,6 +6,7 @@ import os
 import tempfile
 import warnings
 from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Literal, overload
 
 import requests
@@ -13,7 +14,6 @@ import requests
 from ._cache import _SVGCache, cache_key, svg_cache
 
 if TYPE_CHECKING:
-    from pathlib import Path
     from typing import Callable, TypeVar
 
     F = TypeVar("F", bound=Callable)
@@ -115,7 +115,7 @@ def last_modified(*prefixes: str) -> dict[str, int]:
     query_params = {"prefixes": ",".join(prefixes)}
     resp = requests.get(f"{ROOT}/last-modified", params=query_params)
     resp.raise_for_status()
-    if "lastModified" not in (content := resp.json()):
+    if "lastModified" not in (content := resp.json()):  # pragma: no cover
         raise ValueError(
             f"Unexpected response from API: {content}. Expected 'lastModified'."
         )
@@ -213,7 +213,7 @@ def _svg_path(svg_cache_key: str) -> Path | None:
     if isinstance(cache, _SVGCache):
         if (path := cache.path_for(svg_cache_key)) and path.is_file():
             return path
-    return None
+    return None  # pragma: no cover
 
 
 @lru_cache(maxsize=None)
@@ -225,18 +225,19 @@ def svg_path(
     flip: Literal["horizontal", "vertical", "horizontal,vertical"] | None = None,
     rotate: Rotation | None = None,
     box: bool | None = None,
-    dir: str | None = None,
-) -> str:
+    dir: str | Path | None = None,
+) -> Path:
     """Similar to `svg` but returns a path to SVG file for `key`.
 
     Arguments are the same as for `pyconfify.api.svg` except for `dir` which is the
     directory to save the SVG file to (it will be passed to `tempfile.mkstemp`).
     """
     # first look for SVG file in cache
-    *_, svg_cache_key = _svg_keys(key, locals())
-    if path := _svg_path(svg_cache_key):
-        # if it exists return that string
-        return str(path)
+    if dir is None:
+        *_, svg_cache_key = _svg_keys(key, locals())
+        if path := _svg_path(svg_cache_key):
+            # if it exists return that string
+            return path
 
     # otherwise, we need to download it and save it to a temporary file
     svg_bytes = svg(
@@ -245,7 +246,7 @@ def svg_path(
 
     # make a temporary file
     file_prefix = f"pyconify_{'-'.join(key)}".replace(":", "-")
-    fd, tmp_name = tempfile.mkstemp(prefix=file_prefix, suffix=".svg", dir=dir)
+    fd, tmp_name = tempfile.mkstemp(prefix=file_prefix, suffix=".svg", dir=str(dir))
     with os.fdopen(fd, "wb") as f:
         f.write(svg_bytes)
 
@@ -255,7 +256,7 @@ def svg_path(
         with suppress(FileNotFoundError):  # pragma: no cover
             os.remove(tmp_name)
 
-    return tmp_name
+    return Path(tmp_name)
 
 
 @lru_cache(maxsize=None)

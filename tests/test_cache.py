@@ -25,3 +25,8 @@ def test_cache(tmp_path: Path) -> None:
 
     with pytest.raises(KeyError):
         cache["not a key"]
+
+
+def test_cache_dir(monkeypatch):
+    monkeypatch.setattr(_cache, "PYCONIFY_CACHE", "/some/path")
+    assert get_cache_directory() == Path("/some/path")

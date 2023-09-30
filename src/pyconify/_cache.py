@@ -41,7 +41,7 @@ def clear_cache() -> None:
 def get_cache_directory(app_name: str = "pyconify") -> Path:
     """Return the pyconify svg cache directory."""
     if PYCONIFY_CACHE:
-        return Path(PYCONIFY_CACHE).expanduser()
+        return Path(PYCONIFY_CACHE).expanduser().resolve()
 
     if os.name == "posix":
         return Path.home() / ".cache" / app_name
