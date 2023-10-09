@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from pyconify.freedesktop import freedesktop_theme
+from pyconify import freedesktop_theme
 
 if TYPE_CHECKING:
     from pathlib import Path
