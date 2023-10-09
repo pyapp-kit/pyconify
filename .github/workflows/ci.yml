@@ -30,6 +30,7 @@ jobs:
             platform: windows-latest
           - python-version: "3.10"
             platform: macos-latest
+            with-qt: true
 
     steps:
       - uses: actions/checkout@v4
@@ -47,6 +48,15 @@ jobs:
 
       - name: 🧪 Run Tests
         run: pytest --color=yes --cov --cov-report=xml --cov-report=term-missing
+
+      - name: Test Qt
+        if: matrix.with-qt == 'true'
+        run: |
+          # Note pyside2 cannot be installed with PyQt5 
+          pip install PyQt5 PyQt6
+          pytest -k PyQt --cov --cov-report=xml --cov-append
+          pip install PySide2 PySide6
+          pytest -k PySide --cov --cov-report=xml --cov-append
 
       # If something goes wrong with --pre tests, we can open an issue in the repo
       - name: 📝 Report --pre Failures

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from typing import Literal, NotRequired, Required, TypedDict
 
     Rotation = Literal["90", "180", "270", 90, 180, 270, "-90", 1, 2, 3]
+    Flip = Literal["horizontal", "vertical", "horizontal,vertical"]
 
     class Author(TypedDict, total=False):
         """Author information."""
