@@ -231,11 +231,11 @@ def svg_path(
 
     Arguments are the same as for `pyconfify.api.svg` except for `dir` which is the
     directory to save the SVG file to (it will be passed to `tempfile.mkstemp`).
-    To have permanen cache under custom localisation one need to set 
-    PYCONIFY_CACHE environment variable befor import pyconify. 
+    To have permanen cache under custom localisation one need to set
+    PYCONIFY_CACHE environment variable befor import pyconify.
     """
 
-    # if there is no request to store outside cache 
+    # if there is no request to store outside cache
     # and default cache is not disabled then get it from cache
     if dir is None and :
         *_, svg_cache_key = _svg_keys(key, locals())
@@ -248,7 +248,7 @@ def svg_path(
             # if it exists return that string
             # this may fail if cache is disabled globally
             return path
-         
+
     # otherwise, we need to download it and save it to a temporary file
     svg_bytes = svg(
         *key, color=color, height=height, width=width, flip=flip, rotate=rotate, box=box
