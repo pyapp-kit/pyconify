@@ -36,7 +36,7 @@ def test_icon_data() -> None:
     assert result["prefix"] == "bi"
     assert "alarm" in result["icons"]
 
-    with pytest.raises(IOError, match="No data returned"):
+    with pytest.raises(IOError, match="Icon set 'not' not found"):
         pyconify.icon_data("not", "found")
 
 
