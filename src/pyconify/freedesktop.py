@@ -99,7 +99,7 @@ def freedesktop_theme(
     keyword arguments:
 
     ```python
-    from pyconify import theme_folder
+    from pyconify import freedesktop_theme
     from pyconify.api import svg
     icons = {
         "edit-copy": "ic:sharp-content-copy",
@@ -108,7 +108,7 @@ def freedesktop_theme(
         "weather-clear": "ic:sharp-wb-sunny",
         "bell": "bi:bell",
     }
-    folder = theme_folder(
+    folder = freedesktop_theme(
         "mytheme",
         icons,
         base_directory="~/Desktop/icons",
