@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/pypi/l/pyconify.svg?color=green)](https://github.com/pyapp-kit/pyconify/raw/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/pyconify.svg?color=green)](https://pypi.org/project/pyconify)
+[![Conda](https://img.shields.io/conda/vn/conda-forge/pyconify)](https://github.com/conda-forge/pyconify-feedstock)
 [![Python Version](https://img.shields.io/pypi/pyversions/pyconify.svg?color=green)](https://python.org)
 [![CI](https://github.com/pyapp-kit/pyconify/actions/workflows/ci.yml/badge.svg)](https://github.com/pyapp-kit/pyconify/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/pyapp-kit/pyconify/branch/main/graph/badge.svg)](https://codecov.io/gh/pyapp-kit/pyconify)
@@ -16,8 +17,10 @@ Search for icons at: https://icon-sets.iconify.design
 
 ## Installation
 
-```bash
+```sh
 pip install pyconify
+# or
+conda install -c conda-forge pyconify
 ```
 
 ## Usage
