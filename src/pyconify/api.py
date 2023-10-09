@@ -234,7 +234,6 @@ def svg_path(
     To have permanen cache under custom localisation one need to set
     PYCONIFY_CACHE environment variable befor import pyconify.
     """
-
     # if there is no request to store outside cache
     # and default cache is not disabled then get it from cache
     if dir is None:
@@ -242,7 +241,13 @@ def svg_path(
         if svg_cache_key not in svg_cache():
             # if required fetch the svg from server
             svg(
-                *key, color=color, height=height, width=width, flip=flip, rotate=rotate, box=box
+                *key,
+                color=color,
+                height=height,
+                width=width,
+                flip=flip,
+                rotate=rotate,
+                box=box,
             )
         if path := _svg_path(svg_cache_key):
             # if it exists return that string
