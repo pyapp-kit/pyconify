@@ -92,6 +92,12 @@ def test_css() -> None:
     )
     assert result2.startswith("common")
 
+    with pytest.raises(IOError, match="Icon set 'not' not found."):
+        pyconify.css("not:found")
+
+    with pytest.warns(UserWarning, match=r"Icon\(s\) \['nor-this', 'not-an-icon'\]"):
+        pyconify.css("bi:not-an-icon,nor-this")
+
 
 def test_last_modified() -> None:
     assert isinstance(pyconify.last_modified("bi")["bi"], int)

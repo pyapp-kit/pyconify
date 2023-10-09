@@ -380,9 +380,9 @@ def css(
             "Search for icons at https://icon-sets.iconify.design",
             response=resp,
         )
-    if missing := re.findall(r"Could not find icon: ([^\s]*) ", resp.text):
+    if missing := set(re.findall(r"Could not find icon: ([^\s]*) ", resp.text)):
         warnings.warn(
-            f"Icon(s) {missing} not found. "
+            f"Icon(s) {sorted(missing)} not found. "
             "Search for icons at https://icon-sets.iconify.design",
             stacklevel=2,
         )
