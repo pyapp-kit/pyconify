@@ -51,9 +51,8 @@ def test_tmp_svg(tmp_path) -> None:
     assert result2 != result1
     assert result2.read_bytes() == pyconify.svg("bi", "alarm", rotate=90, box=True)
 
-    result3 = pyconify.svg_path("bi", "alarm-fill", rotate=90, box=True)
+    pyconify.svg_path("bi", "alarm-fill", rotate=90, box=True)
     # assert str(result3).startswith(str(pyconify._cache.get_cache_directory()))
-
 
 
 def test_css() -> None:
