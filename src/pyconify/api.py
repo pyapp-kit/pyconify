@@ -237,7 +237,7 @@ def svg_path(
 
     # if there is no request to store outside cache
     # and default cache is not disabled then get it from cache
-    if dir is None and :
+    if dir is None:
         *_, svg_cache_key = _svg_keys(key, locals())
         if svg_cache_key not in svg_cache():
             # if required fetch the svg from server
