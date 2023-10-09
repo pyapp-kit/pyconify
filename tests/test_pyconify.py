@@ -1,8 +1,18 @@
 from pathlib import Path
+from typing import Iterator
+from unittest.mock import patch
 
 import pyconify
-import pyconify._cache
 import pytest
+from pyconify import _cache, api
+
+
+@pytest.fixture
+def no_cache(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    tmp = tmp_path_factory.mktemp("pyconify")
+    TEST_CACHE = _cache._SVGCache(directory=tmp)
+    with patch.object(api, "svg_cache", lambda: TEST_CACHE):
+        yield
 
 
 def test_collections() -> None:
@@ -30,6 +40,7 @@ def test_icon_data() -> None:
         pyconify.icon_data("not", "found")
 
 
+@pytest.mark.usefixtures("no_cache")
 def test_svg() -> None:
     result = pyconify.svg("bi", "alarm", rotate=90, box=True)
     assert isinstance(result, bytes)
@@ -39,7 +50,8 @@ def test_svg() -> None:
         pyconify.svg("not", "found")
 
 
-def test_tmp_svg(tmp_path) -> None:
+@pytest.mark.usefixtures("no_cache")
+def test_tmp_svg(tmp_path: Path) -> None:
     result1 = pyconify.svg_path("bi", "alarm", rotate=90, box=True)
     assert isinstance(result1, Path)
     assert result1.read_bytes() == pyconify.svg("bi", "alarm", rotate=90, box=True)
@@ -51,8 +63,13 @@ def test_tmp_svg(tmp_path) -> None:
     assert result2 != result1
     assert result2.read_bytes() == pyconify.svg("bi", "alarm", rotate=90, box=True)
 
-    pyconify.svg_path("bi", "alarm-fill", rotate=90, box=True)
-    # assert str(result3).startswith(str(pyconify._cache.get_cache_directory()))
+
+def test_tmp_svg_with_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that we can set the cache directory to tmp_path with monkeypatch."""
+    monkeypatch.setattr(_cache, "PYCONIFY_CACHE", str(tmp_path))
+    monkeypatch.setattr(_cache, "_SVG_CACHE", None)
+    result3 = pyconify.svg_path("bi", "alarm-fill")
+    assert str(result3).startswith(str(_cache.get_cache_directory()))
 
 
 def test_css() -> None:
