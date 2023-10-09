@@ -97,3 +97,46 @@ To specify a custom cache directory, set the `PYCONIFY_CACHE` environment
 variable to your desired directory.
 To disable caching altogether, set the `PYCONIFY_CACHE` environment variable to
 `false` or `0`.
+
+### freedesktop themes
+
+`pyconify` includes a convenience function to generate a directory of SVG files
+in the [freedesktop icon theme specification](https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html)
+
+It takes a mapping of names from the [icon naming spec](https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html)
+to iconify keys (e.g. `"prefix:icon"`). Icons will be placed in the
+appropriate freedesktop subdirectory based on the icon name. Unknown icons will be placed
+in the `other` subdirectory.
+
+```python
+from pyconify import freedesktop_theme
+from pyconify.api import svg
+icons = {
+    "edit-copy": "ic:sharp-content-copy",
+    "edit-delete": {"key": "ic:sharp-delete", "color": "red"},
+    "weather-overcast": "ic:sharp-cloud",
+    "weather-clear": "ic:sharp-wb-sunny",
+    "bell": "bi:bell",
+}
+folder = freedesktop_theme(
+    "mytheme",
+    icons,
+    base_directory="~/Desktop/icons",
+)
+```
+
+would create
+
+```
+~/Desktop/icons/
+├── mytheme
+│   ├── actions
+│   │   ├── edit-copy.svg
+│   │   └── edit-delete.svg
+│   ├── status
+│   │   ├── weather-clear.svg
+│   │   └── weather-overcast.svg
+│   └── other
+│       └── bell.svg
+└── index.theme
+```
