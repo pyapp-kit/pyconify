@@ -39,6 +39,12 @@ def test_freedesktop(tmp_path: Path) -> None:
 
 
 @pytest.mark.usefixtures("no_cache")
+def test_freedesktop_tmp_dir() -> None:
+    d = freedesktop_theme("mytheme", ICONS, comment="asdff")
+    assert d.exists()
+
+
+@pytest.mark.usefixtures("no_cache")
 @pytest.mark.parametrize("backend", ["PySide2", "PyQt5", "PyQt6", "PySide6"])
 def test_freedesktop_qt(backend: str, tmp_path: Path) -> None:
     """Test that the created folder works as a Qt Theme."""

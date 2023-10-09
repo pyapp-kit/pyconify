@@ -153,10 +153,10 @@ def freedesktop_theme(
     ```
     """
     if base_directory is None:
-        base = Path(mkdtemp(prefix="pyconify-theme-icons-"))
+        base = Path(mkdtemp(prefix="pyconify-theme-icons"))
 
         @atexit.register
-        def _cleanup() -> None:
+        def _cleanup() -> None:  # pragma: no cover
             shutil.rmtree(base, ignore_errors=True)
 
     else:
@@ -181,10 +181,10 @@ def freedesktop_theme(
         if isinstance(_svg_kwargs, Mapping):
             _kwargs: Any = {**kwargs, **_svg_kwargs}
             if "key" not in _kwargs:
-                raise ValueError("Expected 'key' in kwargs")
+                raise ValueError("Expected 'key' in kwargs")  # pragma: no cover
             key = _kwargs.pop("key")  # must be present
         else:
-            if not isinstance(_svg_kwargs, str):
+            if not isinstance(_svg_kwargs, str):  # pragma: no cover
                 raise TypeError(f"Expected icon name or dict, got {type(_svg_kwargs)}")
             key, _kwargs = _svg_kwargs, kwargs
         (dest / file_name).with_suffix(".svg").write_bytes(svg(key, **_kwargs))
