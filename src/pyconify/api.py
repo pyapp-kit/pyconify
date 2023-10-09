@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Iterable, Literal, overload
 
 import requests
 
-from ._cache import _SVGCache, cache_key, svg_cache
+from ._cache import CACHE_DISABLED, _SVGCache, cache_key, svg_cache
 
 if TYPE_CHECKING:
     from typing import Callable, TypeVar
@@ -141,6 +141,12 @@ def svg(
     Example:
     https://api.iconify.design/fluent-emoji-flat/alarm-clock.svg?height=48&width=48
 
+    SVGs are cached to disk by default. To disable caching, set the `PYCONIFY_CACHE`
+    environment variable to `0` (before importing pyconify).  To customize the location
+    of the cache, set the `PYCONIFY_CACHE` environment variable to the path of the
+    desired cache directory. To reveal the location of the cache, use
+    `pyconify.get_cache_directory()`.
+
     Parameters
     ----------
     key: str
@@ -229,14 +235,43 @@ def svg_path(
 ) -> Path:
     """Similar to `svg` but returns a path to SVG file for `key`.
 
-    Arguments are the same as for `pyconfify.api.svg` except for `dir` which is the
+    Arguments are the same as for `pyconfify.api.svg()` except for `dir` which is the
     directory to save the SVG file to (it will be passed to `tempfile.mkstemp`).
+
+    If `dir` is specified, the SVG will be downloaded to a temporary file in that
+    directory, and the path to that file will be returned. The temporary file will be
+    deleted when the program exits.
+
+    If `dir` is `None` and caching is enabled (the default), the SVG will be downloaded
+    and cached to disk and the path to the cached file will be returned. If `dir` is
+    `None` and caching is disabled (by setting the `PYCONIFY_CACHE` environment variable
+    to `'0'` before import), a temporary file will be created (using `tempfile.mkstemp`)
+    and the path to that file will be returned.
+
+    As with `pyconfify.api.svg`, calls to `svg_path` result in SVGs being cached to
+    disk. To disable caching, set the `PYCONIFY_CACHE` environment variable to `0`
+    (before importing pyconify). To customize the location of the cache, set the
+    `PYCONIFY_CACHE` environment variable to the path of the desired cache directory.
+    To reveal the location of the cache, use `pyconify.get_cache_directory()`.
     """
-    # first look for SVG file in cache
+    # if there is no request to store outside cache
+    # and default cache is not disabled then get it from cache
     if dir is None:
         *_, svg_cache_key = _svg_keys(key, locals())
+        if not CACHE_DISABLED and svg_cache_key not in svg_cache():
+            # if required fetch the svg from server
+            svg(
+                *key,
+                color=color,
+                height=height,
+                width=width,
+                flip=flip,
+                rotate=rotate,
+                box=box,
+            )
         if path := _svg_path(svg_cache_key):
             # if it exists return that string
+            # if cache is disabled globally, this will always be None
             return path
 
     # otherwise, we need to download it and save it to a temporary file
