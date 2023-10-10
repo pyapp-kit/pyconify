@@ -22,6 +22,7 @@ __all__ = [
     "search",
     "svg",
     "svg_path",
+    "freedesktop_theme",
 ]
 
 from ._cache import clear_cache, get_cache_directory
@@ -37,3 +38,4 @@ from .api import (
     svg,
     svg_path,
 )
+from .freedesktop import freedesktop_theme
