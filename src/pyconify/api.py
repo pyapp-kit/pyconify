@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import atexit
 import os
+import re
 import tempfile
 import warnings
 from contextlib import suppress
@@ -86,7 +87,11 @@ def collection(
     resp = requests.get(f"{ROOT}/collection?prefix={prefix}", params=query_params)
     resp.raise_for_status()
     if (content := resp.json()) == 404:
-        raise requests.HTTPError(f"Icon set {prefix!r} not found.", response=resp)
+        raise requests.HTTPError(
+            f"Icon set {prefix!r} not found. "
+            "Search for icons at https://icon-sets.iconify.design",
+            response=resp,
+        )
     return content  # type: ignore
 
 
@@ -193,7 +198,11 @@ def svg(
     resp = requests.get(f"{ROOT}/{prefix}/{name}.svg", params=query_params)
     resp.raise_for_status()
     if resp.content == b"404":
-        raise requests.HTTPError(f"Icon '{prefix}:{name}' not found.", response=resp)
+        raise requests.HTTPError(
+            f"Icon '{prefix}:{name}' not found. "
+            f"Search for icons at https://icon-sets.iconify.design?query={name}",
+            response=resp,
+        )
 
     # cache response and return
     cache[svg_cache_key] = resp.content
@@ -354,27 +363,29 @@ def css(
     """
     prefix, icons = _split_prefix_name(keys, allow_many=True)
     params: dict = {}
-    if selector is not None:
-        params["selector"] = selector
-    if common is not None:
-        params["common"] = common
-    if override is not None:
-        params["override"] = override
+
+    for k in ("selector", "common", "override", "var", "color", "mode", "format"):
+        if (val := locals()[k]) is not None:
+            params[k] = val
     if pseudo:
         params["pseudo"] = 1
-    if var is not None:
-        params["var"] = var
     if square:
         params["square"] = 1
-    if color is not None:
-        params["color"] = color
-    if mode is not None:
-        params["mode"] = mode
-    if format is not None:
-        params["format"] = format
 
     resp = requests.get(f"{ROOT}/{prefix}.css?icons={','.join(icons)}", params=params)
     resp.raise_for_status()
+    if resp.text == "404":
+        raise requests.HTTPError(
+            f"Icon set {prefix!r} not found. "
+            "Search for icons at https://icon-sets.iconify.design",
+            response=resp,
+        )
+    if missing := set(re.findall(r"Could not find icon: ([^\s]*) ", resp.text)):
+        warnings.warn(
+            f"Icon(s) {sorted(missing)} not found. "
+            "Search for icons at https://icon-sets.iconify.design",
+            stacklevel=2,
+        )
     return resp.text
 
 
@@ -400,7 +411,11 @@ def icon_data(*keys: str) -> IconifyJSON:
     resp = requests.get(f"{ROOT}/{prefix}.json?icons={','.join(names)}")
     resp.raise_for_status()
     if (content := resp.json()) == 404:
-        raise requests.HTTPError(f"No data returned for {prefix!r}", response=resp)
+        raise requests.HTTPError(
+            f"Icon set {prefix!r} not found. "
+            "Search for icons at https://icon-sets.iconify.design",
+            response=resp,
+        )
     return content  # type: ignore
 
 

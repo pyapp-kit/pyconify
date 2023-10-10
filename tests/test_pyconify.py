@@ -36,7 +36,7 @@ def test_icon_data() -> None:
     assert result["prefix"] == "bi"
     assert "alarm" in result["icons"]
 
-    with pytest.raises(IOError, match="No data returned"):
+    with pytest.raises(IOError, match="Icon set 'not' not found"):
         pyconify.icon_data("not", "found")
 
 
@@ -91,6 +91,12 @@ def test_css() -> None:
         format="compact",
     )
     assert result2.startswith("common")
+
+    with pytest.raises(IOError, match="Icon set 'not' not found."):
+        pyconify.css("not:found")
+
+    with pytest.warns(UserWarning, match=r"Icon\(s\) \['nor-this', 'not-an-icon'\]"):
+        pyconify.css("bi:not-an-icon,nor-this")
 
 
 def test_last_modified() -> None:
