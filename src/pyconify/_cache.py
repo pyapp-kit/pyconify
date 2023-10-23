@@ -56,7 +56,7 @@ def get_cache_directory(app_name: str = "pyconify") -> Path:
 DELIM = "_"
 
 
-def cache_key(args: tuple, kwargs: dict, last_modified: int) -> str:
+def cache_key(args: tuple, kwargs: dict, last_modified: int | str) -> str:
     """Generate a key for the cache based on the function arguments."""
     _keys: tuple = args
     if kwargs:
