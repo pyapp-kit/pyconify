@@ -252,7 +252,7 @@ def _cached_svg_path(svg_cache_key: str) -> Path | None:
     return None  # pragma: no cover
 
 
-# @lru_cache(maxsize=None)
+@lru_cache(maxsize=None)
 def svg_path(
     *key: str,
     color: str | None = None,
