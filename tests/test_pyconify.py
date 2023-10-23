@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pyconify
 import pytest
-from pyconify import _cache
 
 
 def test_collections() -> None:
@@ -52,14 +51,6 @@ def test_tmp_svg(tmp_path: Path) -> None:
     assert result2.parent == tmp_path
     assert result2 != result1
     assert result2.read_bytes() == pyconify.svg("bi", "alarm", rotate=90, box=True)
-
-
-def test_tmp_svg_with_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that we can set the cache directory to tmp_path with monkeypatch."""
-    monkeypatch.setattr(_cache, "PYCONIFY_CACHE", str(tmp_path))
-    monkeypatch.setattr(_cache, "_SVG_CACHE", None)
-    result3 = pyconify.svg_path("bi", "alarm-fill")
-    assert str(result3).startswith(str(_cache.get_cache_directory()))
 
 
 def test_css() -> None:

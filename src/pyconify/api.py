@@ -184,6 +184,9 @@ def svg(
 
     if svg_cache_key in (cache := svg_cache()):
         return cache[svg_cache_key]
+    if path := _cached_svg_path(svg_cache_key):
+        # this will catch cases offline cases where last_modified is not available
+        return path.read_bytes()
 
     if rotate not in (None, 1, 2, 3):
         rotate = str(rotate).replace("deg", "") + "deg"  # type: ignore
@@ -210,25 +213,42 @@ def svg(
     return resp.content
 
 
+NO_LAST_MOD = "000"
+
+
 def _svg_keys(args: tuple, kwargs: dict) -> tuple[str, str, str]:
     prefix, name = _split_prefix_name(args)
-    last_mod = last_modified().get(prefix, 0)
+    try:
+        # important not to rely on internet when looking for cached file
+        last_mod = last_modified().get(prefix, NO_LAST_MOD)
+    except OSError:
+        last_mod = NO_LAST_MOD
+
     _kwargs = {
         k: v
         for k, v in kwargs.items()
         if k in {"color", "height", "width", "flip", "rotate", "box"}
     }
-
     svg_cache_key = cache_key((prefix, name), _kwargs, last_mod)
     return prefix, name, svg_cache_key
 
 
-def _svg_path(svg_cache_key: str) -> Path | None:
+def _cached_svg_path(svg_cache_key: str) -> Path | None:
     """Return path to existing SVG file for `key` or None."""
     cache = svg_cache()
     if isinstance(cache, _SVGCache):
-        if (path := cache.path_for(svg_cache_key)) and path.is_file():
+        if (path := cache.path_for(svg_cache_key)).is_file():
             return path
+        if svg_cache_key.endswith(NO_LAST_MOD):
+            # if the last modified date is not available, try to find a file with any
+            # last modified date
+            key_stem = svg_cache_key.split(NO_LAST_MOD, 1)[0]
+            for existing_key in cache:
+                if (
+                    existing_key.startswith(key_stem)
+                    and (path := cache.path_for(existing_key)).is_file()
+                ):
+                    return path
     return None  # pragma: no cover
 
 
@@ -268,18 +288,7 @@ def svg_path(
     # and default cache is not disabled then get it from cache
     if dir is None:
         *_, svg_cache_key = _svg_keys(key, locals())
-        if not CACHE_DISABLED and svg_cache_key not in svg_cache():
-            # if required fetch the svg from server
-            svg(
-                *key,
-                color=color,
-                height=height,
-                width=width,
-                flip=flip,
-                rotate=rotate,
-                box=box,
-            )
-        if path := _svg_path(svg_cache_key):
+        if path := _cached_svg_path(svg_cache_key):
             # if it exists return that string
             # if cache is disabled globally, this will always be None
             return path
@@ -288,6 +297,12 @@ def svg_path(
     svg_bytes = svg(
         *key, color=color, height=height, width=width, flip=flip, rotate=rotate, box=box
     )
+    if dir is None and not CACHE_DISABLED and (path := _cached_svg_path(svg_cache_key)):
+        # if the first hit failed, then the call to svg() will have cached the result
+        # and we can now return it.
+        # if cache is disabled globally, this will still be None and we proceed with
+        # creating a temporary file
+        return path
 
     # make a temporary file
     file_prefix = f"pyconify_{'-'.join(key)}".replace(":", "-")

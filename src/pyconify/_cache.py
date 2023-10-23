@@ -19,9 +19,10 @@ def svg_cache() -> MutableMapping[str, bytes]:  # pragma: no cover
         else:
             try:
                 _SVG_CACHE = _SVGCache()
-                _delete_stale_svgs(_SVG_CACHE)
             except Exception:
                 _SVG_CACHE = {}
+            with suppress(OSError):
+                _delete_stale_svgs(_SVG_CACHE)
     return _SVG_CACHE
 
 
@@ -56,7 +57,7 @@ def get_cache_directory(app_name: str = "pyconify") -> Path:
 DELIM = "_"
 
 
-def cache_key(args: tuple, kwargs: dict, last_modified: int) -> str:
+def cache_key(args: tuple, kwargs: dict, last_modified: int | str) -> str:
     """Generate a key for the cache based on the function arguments."""
     _keys: tuple = args
     if kwargs:
