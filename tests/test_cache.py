@@ -51,7 +51,8 @@ def tmp_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]
     yield cache
 
 
-def test_tmp_svg_with_fixture(tmp_cache: Path) -> None:
+@pytest.mark.usefixtures("tmp_cache")
+def test_tmp_svg_with_fixture() -> None:
     """Test that we can set the cache directory to tmp_path with monkeypatch."""
     result3 = pyconify.svg_path("bi", "alarm-fill")
     assert str(result3).startswith(str(_cache.get_cache_directory()))
@@ -70,7 +71,8 @@ def internet_offline() -> Iterator[None]:
         yield
 
 
-def test_cache_used_offline(tmp_cache: Path) -> None:
+@pytest.mark.usefixtures("tmp_cache")
+def test_cache_used_offline() -> None:
     svg = pyconify.svg_path("mdi:pen-add", color="#333333")
     svgb = pyconify.svg("mdi:pen-add", color="#333333")
     # make sure a previously cached icon works offline
@@ -86,3 +88,10 @@ def test_cache_used_offline(tmp_cache: Path) -> None:
 
         svgb2 = pyconify.svg("mdi:pen-add", color="#333333")
         assert svgb == svgb2
+
+
+@pytest.mark.usefixtures("tmp_cache")
+def test_cache_loaded_offline(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_cache, "_SVG_CACHE", None)
+    with internet_offline():
+        assert isinstance(_cache.svg_cache(), _cache._SVGCache)

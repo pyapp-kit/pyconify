@@ -19,9 +19,10 @@ def svg_cache() -> MutableMapping[str, bytes]:  # pragma: no cover
         else:
             try:
                 _SVG_CACHE = _SVGCache()
-                _delete_stale_svgs(_SVG_CACHE)
             except Exception:
                 _SVG_CACHE = {}
+            with suppress(OSError):
+                _delete_stale_svgs(_SVG_CACHE)
     return _SVG_CACHE
 
 
