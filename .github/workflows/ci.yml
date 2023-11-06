@@ -2,10 +2,8 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - "v*"
+    branches: [main]
+    tags: [v*]
   pull_request:
   workflow_dispatch:
   schedule:
@@ -18,62 +16,36 @@ concurrency:
 
 jobs:
   test:
-    name: ${{ matrix.platform }} (${{ matrix.python-version }})
-    runs-on: ${{ matrix.platform }}
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      pip-install-pre-release: ${{ github.event_name == 'schedule' }}
+      report-failures: ${{ github.event_name == 'schedule' }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-latest]
         include:
           - python-version: "3.8"
-            platform: windows-latest
-          - python-version: "3.10"
-            platform: macos-latest
-            with-qt: true
+            os: windows-latest
+          - python-version: "3.8"
+            os: macos-latest
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 🐍 Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install -U pip
-          # if running a cron job, we add the --pre flag to test against pre-releases
-          python -m pip install .[test] ${{ github.event_name == 'schedule' && '--pre' || ''  }}
-
-      - name: 🧪 Run Tests
-        run: pytest --color=yes --cov --cov-report=xml --cov-report=term-missing
-
-      - name: Test Qt
-        if: matrix.with-qt == 'true'
-        run: |
-          # Note pyside2 cannot be installed with PyQt5 
-          pip install PyQt5 PyQt6
-          pytest -k PyQt --cov --cov-report=xml --cov-append
-          pip install PySide2 PySide6
-          pytest -k PySide --cov --cov-report=xml --cov-append
-
-      # If something goes wrong with --pre tests, we can open an issue in the repo
-      - name: 📝 Report --pre Failures
-        if: failure() && github.event_name == 'schedule'
-        uses: JasonEtco/create-an-issue@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PLATFORM: ${{ matrix.platform }}
-          PYTHON: ${{ matrix.python-version }}
-          RUN_ID: ${{ github.run_id }}
-          TITLE: "[test-bot] pip install --pre is failing"
-        with:
-          filename: .github/TEST_FAIL_TEMPLATE.md
-          update_existing: true
-
-      - name: Coverage
-        uses: codecov/codecov-action@v3
+  test-qt:
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
+    with:
+      os: macos-latest
+      python-version: "3.10"
+      pip-post-installs: ${{ matrix.post }}
+      pytest-args: '-k Py'
+      pip-install-pre-release: ${{ github.event_name == 'schedule' }}
+      report-failures: ${{ github.event_name == 'schedule' }}
+    strategy:
+      fail-fast: false
+      matrix:
+          post: ['PyQt5', 'PyQt6', 'PySide2', 'PySide6']
 
   deploy:
     name: Deploy
