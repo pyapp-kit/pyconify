@@ -7,7 +7,7 @@ on:
   pull_request:
   workflow_dispatch:
   schedule:
-    # run every week (for pre-release tests)
+    # run every week (for --pre release tests)
     - cron: "0 0 * * 0"
 
 concurrency:
@@ -16,9 +16,7 @@ concurrency:
 
 jobs:
   test:
-    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@main
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
@@ -41,13 +39,13 @@ jobs:
       os: macos-latest
       python-version: "3.10"
       pip-post-installs: ${{ matrix.post }}
-      pytest-args: "-k Py"
+      pytest-args: '-k Py'
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
       report-failures: ${{ github.event_name == 'schedule' }}
     strategy:
       fail-fast: false
       matrix:
-        post: ["PyQt5", "PyQt6", "PySide2", "PySide6"]
+          post: ['PyQt5', 'PyQt6', 'PySide2', 'PySide6']
 
   deploy:
     name: Deploy
