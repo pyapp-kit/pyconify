@@ -7,7 +7,7 @@ on:
   pull_request:
   workflow_dispatch:
   schedule:
-    # run every week (for --pre release tests)
+    # run every week (for pre-release tests)
     - cron: "0 0 * * 0"
 
 concurrency:
