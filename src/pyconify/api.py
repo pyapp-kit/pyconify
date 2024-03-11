@@ -1,4 +1,5 @@
 """Wrapper for api calls at https://api.iconify.design/."""
+
 from __future__ import annotations
 
 import atexit
@@ -563,15 +564,13 @@ def iconify_version() -> str:
 @overload
 def _split_prefix_name(
     key: tuple[str, ...], allow_many: Literal[False] = ...
-) -> tuple[str, str]:
-    ...
+) -> tuple[str, str]: ...
 
 
 @overload
 def _split_prefix_name(
     key: tuple[str, ...], allow_many: Literal[True]
-) -> tuple[str, tuple[str, ...]]:
-    ...
+) -> tuple[str, tuple[str, ...]]: ...
 
 
 def _split_prefix_name(
