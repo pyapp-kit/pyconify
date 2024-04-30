@@ -38,16 +38,16 @@ jobs:
     uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
     secrets: inherit
     with:
-      os: macos-latest
+      os: ubuntu-latest
       python-version: "3.10"
-      pip-post-installs: ${{ matrix.post }}
-      pytest-args: '-k Py'
+      qt: ${{ matrix.qt }}
+      pytest-args: "-k Py"
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
       report-failures: ${{ github.event_name == 'schedule' }}
     strategy:
       fail-fast: false
       matrix:
-          post: ['PyQt5', 'PyQt6', 'PySide2', 'PySide6']
+        qt: ["PyQt5", "PyQt6", "PySide2", "PySide6"]
 
   deploy:
     name: Deploy
