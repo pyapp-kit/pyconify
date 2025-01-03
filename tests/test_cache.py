@@ -7,8 +7,7 @@ import pytest
 import requests
 
 import pyconify
-from pyconify import _cache
-from pyconify import api
+from pyconify import _cache, api
 from pyconify._cache import _SVGCache, clear_cache, get_cache_directory
 
 
@@ -82,8 +81,7 @@ def test_cache_used_offline() -> None:
     with internet_offline():
         # make sure the patch works
         with pytest.raises(requests.ConnectionError):
-            x = pyconify.svg_path("mdi:pencil-plus-outline")
-            breakpoint()
+            pyconify.svg_path("mdi:pencil-plus-outline")
 
         # make sure the cached icon works
         svg2 = pyconify.svg_path("mdi:pen-add", color="#333333")
