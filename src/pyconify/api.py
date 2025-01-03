@@ -3,20 +3,22 @@
 from __future__ import annotations
 
 import atexit
+import functools
 import os
 import re
 import tempfile
 import warnings
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Literal, overload
-
-import requests
+from typing import TYPE_CHECKING, Literal, overload
 
 from ._cache import CACHE_DISABLED, _SVGCache, cache_key, svg_cache
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from typing import Callable, TypeVar
+
+    import requests
 
     F = TypeVar("F", bound=Callable)
 
@@ -30,16 +32,21 @@ if TYPE_CHECKING:
         Rotation,
     )
 
-    def lru_cache(maxsize: int | None = None) -> Callable[[F], F]:
-        """Dummy lru_cache decorator for type checking."""
-
-else:
-    from functools import lru_cache
 
 ROOT = "https://api.iconify.design"
 
 
-@lru_cache(maxsize=None)
+@functools.cache
+def _session() -> requests.Session:
+    """Return a requests session."""
+    import requests
+
+    session = requests.Session()
+    session.headers.update({"User-Agent": "pyconify"})
+    return session
+
+
+@functools.cache
 def collections(*prefixes: str) -> dict[str, IconifyInfo]:
     """Return collections where key is icon set prefix, value is IconifyInfo object.
 
@@ -55,12 +62,12 @@ def collections(*prefixes: str) -> dict[str, IconifyInfo]:
         end with "-", such as "mdi-" matches "mdi-light".
     """
     query_params = {"prefixes": ",".join(prefixes)}
-    resp = requests.get(f"{ROOT}/collections", params=query_params)
+    resp = _session().get(f"{ROOT}/collections", params=query_params, timeout=2)
     resp.raise_for_status()
     return resp.json()  # type: ignore
 
 
-@lru_cache(maxsize=None)
+@functools.cache
 def collection(
     prefix: str,
     info: bool = False,
@@ -86,18 +93,19 @@ def collection(
         query_params["chars"] = 1
     if info:
         query_params["info"] = 1
-    resp = requests.get(f"{ROOT}/collection?prefix={prefix}", params=query_params)
-    resp.raise_for_status()
-    if (content := resp.json()) == 404:
-        raise requests.HTTPError(
+    resp = _session().get(
+        f"{ROOT}/collection?prefix={prefix}", params=query_params, timeout=2
+    )
+    if 400 <= resp.status_code < 500:
+        raise OSError(
             f"Icon set {prefix!r} not found. "
             "Search for icons at https://icon-sets.iconify.design",
-            response=resp,
         )
-    return content  # type: ignore
+    resp.raise_for_status()
+    return resp.json()  # type: ignore
 
 
-@lru_cache(maxsize=None)
+@functools.cache
 def last_modified(*prefixes: str) -> dict[str, int]:
     """Return last modified date for icon sets.
 
@@ -120,7 +128,7 @@ def last_modified(*prefixes: str) -> dict[str, int]:
         UTC integer timestamp.
     """
     query_params = {"prefixes": ",".join(prefixes)}
-    resp = requests.get(f"{ROOT}/last-modified", params=query_params)
+    resp = _session().get(f"{ROOT}/last-modified", params=query_params, timeout=2)
     resp.raise_for_status()
     if "lastModified" not in (content := resp.json()):  # pragma: no cover
         raise ValueError(
@@ -200,14 +208,13 @@ def svg(
     }
     if box:
         query_params["box"] = 1
-    resp = requests.get(f"{ROOT}/{prefix}/{name}.svg", params=query_params)
-    resp.raise_for_status()
-    if resp.content == b"404":
-        raise requests.HTTPError(
+    resp = _session().get(f"{ROOT}/{prefix}/{name}.svg", params=query_params, timeout=2)
+    if 400 <= resp.status_code < 500:
+        raise OSError(
             f"Icon '{prefix}:{name}' not found. "
             f"Search for icons at https://icon-sets.iconify.design?query={name}",
-            response=resp,
         )
+    resp.raise_for_status()
 
     # cache response and return
     cache[svg_cache_key] = resp.content
@@ -253,7 +260,7 @@ def _cached_svg_path(svg_cache_key: str) -> Path | None:
     return None  # pragma: no cover
 
 
-@lru_cache(maxsize=None)
+@functools.cache
 def svg_path(
     *key: str,
     color: str | None = None,
@@ -320,7 +327,7 @@ def svg_path(
     return Path(tmp_name)
 
 
-@lru_cache(maxsize=None)
+@functools.cache
 def css(
     *keys: str,
     selector: str | None = None,
@@ -389,14 +396,15 @@ def css(
     if square:
         params["square"] = 1
 
-    resp = requests.get(f"{ROOT}/{prefix}.css?icons={','.join(icons)}", params=params)
-    resp.raise_for_status()
-    if resp.text == "404":
-        raise requests.HTTPError(
+    resp = _session().get(
+        f"{ROOT}/{prefix}.css?icons={','.join(icons)}", params=params, timeout=2
+    )
+    if 400 <= resp.status_code < 500:
+        raise OSError(
             f"Icon set {prefix!r} not found. "
             "Search for icons at https://icon-sets.iconify.design",
-            response=resp,
         )
+    resp.raise_for_status()
     if missing := set(re.findall(r"Could not find icon: ([^\s]*) ", resp.text)):
         warnings.warn(
             f"Icon(s) {sorted(missing)} not found. "
@@ -425,14 +433,13 @@ def icon_data(*keys: str) -> IconifyJSON:
         Icon name(s).
     """
     prefix, names = _split_prefix_name(keys, allow_many=True)
-    resp = requests.get(f"{ROOT}/{prefix}.json?icons={','.join(names)}")
-    resp.raise_for_status()
+    resp = _session().get(f"{ROOT}/{prefix}.json?icons={','.join(names)}", timeout=2)
     if (content := resp.json()) == 404:
-        raise requests.HTTPError(
+        raise OSError(
             f"Icon set {prefix!r} not found. "
             "Search for icons at https://icon-sets.iconify.design",
-            response=resp,
         )
+    resp.raise_for_status()
     return content  # type: ignore
 
 
@@ -499,7 +506,7 @@ def search(
             params["prefixes"] = ",".join(prefixes)
     if category is not None:
         params["category"] = category
-    resp = requests.get(f"{ROOT}/search?query={query}", params=params)
+    resp = _session().get(f"{ROOT}/search?query={query}", params=params, timeout=2)
     resp.raise_for_status()
     return resp.json()  # type: ignore
 
@@ -536,12 +543,12 @@ def keywords(
         params = {"keyword": keyword}
     else:
         params = {}
-    resp = requests.get(f"{ROOT}/keywords", params=params)
+    resp = _session().get(f"{ROOT}/keywords", params=params, timeout=2)
     resp.raise_for_status()
     return resp.json()  # type: ignore
 
 
-@lru_cache(maxsize=None)
+@functools.cache
 def iconify_version() -> str:
     """Return version of iconify API.
 
@@ -556,7 +563,7 @@ def iconify_version() -> str:
     >>> iconify_version()
     'Iconify API version 3.0.0-beta.1'
     """
-    resp = requests.get(f"{ROOT}/version")
+    resp = _session().get(f"{ROOT}/version", timeout=2)
     resp.raise_for_status()
     return resp.text
 
