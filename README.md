@@ -84,8 +84,6 @@ is to use the `svg()` function:
 ```python
 import pyconify
 
-import pyconify
-
 ICONS_TO_STORE = {"mdi:bell", "mdi:bell-off", "mdi:bell-outline"}
 for key in ICONS_TO_STORE:
     pyconify.svg(key)
