@@ -4,6 +4,7 @@ from typing import Iterator
 from unittest.mock import patch
 
 import pytest
+
 from pyconify import _cache, api, get_cache_directory
 
 

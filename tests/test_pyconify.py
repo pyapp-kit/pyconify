@@ -1,7 +1,8 @@
 from pathlib import Path
 
-import pyconify
 import pytest
+
+import pyconify
 
 
 def test_collections() -> None:

@@ -14,6 +14,7 @@ __all__ = [
     "collection",
     "collections",
     "css",
+    "freedesktop_theme",
     "get_cache_directory",
     "icon_data",
     "iconify_version",
@@ -22,7 +23,6 @@ __all__ = [
     "search",
     "svg",
     "svg_path",
-    "freedesktop_theme",
 ]
 
 from ._cache import clear_cache, get_cache_directory
