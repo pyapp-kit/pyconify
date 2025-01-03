@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   test:
-    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v2
     secrets: inherit
     with:
       os: ${{ matrix.os }}
@@ -35,7 +35,7 @@ jobs:
             os: macos-latest
 
   test-qt:
-    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v2
     secrets: inherit
     with:
       os: ubuntu-latest
