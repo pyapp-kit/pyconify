@@ -98,14 +98,15 @@ def test_keywords() -> None:
     with pytest.warns(UserWarning, match="Cannot specify both prefix and keyword"):
         assert isinstance(pyconify.keywords("home", keyword="home"), dict)
 
-    assert pyconify.keywords()
+    with pytest.raises(OSError):
+        pyconify.keywords()
 
 
 def test_search() -> None:
     result = pyconify.search("arrow", prefixes={"bi"}, limit=10, start=2)
     assert result["collections"]
 
-    result = pyconify.search("arrow", prefixes="bi", category="General")
+    result = pyconify.search("home", prefixes="material-symbols", category="Material")
     assert result["collections"]
 
 

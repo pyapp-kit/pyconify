@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import atexit
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any
 
 from pyconify.api import svg
 

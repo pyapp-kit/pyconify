@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator, MutableMapping
 from contextlib import suppress
 from pathlib import Path
-from typing import Iterator, MutableMapping
 
 _SVG_CACHE: MutableMapping[str, bytes] | None = None
 PYCONIFY_CACHE: str = os.environ.get("PYCONIFY_CACHE", "")
@@ -36,7 +36,7 @@ def clear_cache() -> None:
     global _SVG_CACHE
     _SVG_CACHE = None
     with suppress(AttributeError):
-        svg_path.cache_clear()  # type: ignore
+        svg_path.cache_clear()
 
 
 def get_cache_directory(app_name: str = "pyconify") -> Path:

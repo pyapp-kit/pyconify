@@ -1,13 +1,13 @@
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 from unittest.mock import patch
 
 import pytest
 import requests
 
 import pyconify
-from pyconify import _cache
+from pyconify import _cache, api
 from pyconify._cache import _SVGCache, clear_cache, get_cache_directory
 
 
@@ -62,8 +62,8 @@ def test_tmp_svg_with_fixture() -> None:
 @contextmanager
 def internet_offline() -> Iterator[None]:
     """Simulate an offline internet connection."""
-
-    with patch.object(requests, "get") as mock:
+    session = api._session()
+    with patch.object(session, "get") as mock:
         mock.side_effect = requests.ConnectionError("No internet connection.")
         # clear functools caches...
         for val in vars(pyconify).values():
