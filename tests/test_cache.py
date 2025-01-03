@@ -7,8 +7,7 @@ import pytest
 import requests
 
 import pyconify
-from pyconify import _cache
-from pyconify import api
+from pyconify import _cache, api
 from pyconify._cache import _SVGCache, clear_cache, get_cache_directory
 
 
