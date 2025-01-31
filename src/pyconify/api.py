@@ -10,7 +10,7 @@ import tempfile
 import warnings
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, overload
 
 from ._cache import CACHE_DISABLED, _SVGCache, cache_key, svg_cache
 
@@ -19,6 +19,11 @@ if TYPE_CHECKING:
     from typing import Callable, TypeVar
 
     import requests
+
+    class _lru_cache_wrapper(Protocol):
+        __wrapped__: Callable[..., Any]
+
+        def cache_clear(self) -> None: ...
 
     F = TypeVar("F", bound=Callable)
 
@@ -35,6 +40,44 @@ if TYPE_CHECKING:
 
 ROOT = "https://api.iconify.design"
 
+API_FUNCTIONS: set[str] = {"collections", "collection", "last_modified", "css"}
+
+
+def clear_api_cache() -> None:
+    """Clear all cached responses to the iconify API from this session."""
+    for func_name in API_FUNCTIONS:
+        wrapper = cast("_lru_cache_wrapper", globals()[func_name])
+        wrapper.cache_clear()
+
+
+def set_api_cache_maxsize(maxsize: int | None) -> None:
+    """Set the `lru_cache` maxsize for all calls to the iconify API.
+
+    This is NOT the same thing as the on-disk SVG cache
+
+    This will also clear all cached responses to the iconify API from this session.
+    """
+    import pyconify
+
+    if maxsize is not None:
+        if not isinstance(maxsize, int):  # pragma: no cover
+            raise TypeError(
+                f"maxsize must be an integer, not {type(maxsize).__name__}."
+            )
+        if maxsize < 1:  # pragma: no cover
+            maxsize = 0
+
+    for func_name in API_FUNCTIONS:
+        # get the lrue_cache-wrapped function and clear it
+        wrapper = cast("_lru_cache_wrapper", globals()[func_name])
+        wrapper.cache_clear()
+        # get the original function and wrap it with the new maxsize
+        func = wrapper.__wrapped__
+        new_func = functools.lru_cache(maxsize=maxsize)(func)
+        # update the names in both this module and top-level pyconify
+        globals()[func_name] = new_func
+        setattr(pyconify, func_name, new_func)
+
 
 @functools.cache
 def _session() -> requests.Session:
@@ -46,7 +89,7 @@ def _session() -> requests.Session:
     return session
 
 
-@functools.cache
+@functools.lru_cache(maxsize=128)
 def collections(*prefixes: str) -> dict[str, IconifyInfo]:
     """Return collections where key is icon set prefix, value is IconifyInfo object.
 
@@ -67,7 +110,7 @@ def collections(*prefixes: str) -> dict[str, IconifyInfo]:
     return resp.json()  # type: ignore
 
 
-@functools.cache
+@functools.lru_cache(maxsize=128)
 def collection(
     prefix: str,
     info: bool = False,
@@ -260,7 +303,7 @@ def _cached_svg_path(svg_cache_key: str) -> Path | None:
     return None  # pragma: no cover
 
 
-@functools.cache
+@functools.lru_cache(maxsize=128)
 def svg_path(
     *key: str,
     color: str | None = None,
@@ -327,7 +370,7 @@ def svg_path(
     return Path(tmp_name)
 
 
-@functools.cache
+@functools.lru_cache(maxsize=128)
 def css(
     *keys: str,
     selector: str | None = None,

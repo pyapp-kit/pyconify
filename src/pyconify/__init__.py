@@ -10,6 +10,7 @@ except PackageNotFoundError:  # pragma: no cover
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
 __all__ = [
+    "clear_api_cache",
     "clear_cache",
     "collection",
     "collections",
@@ -21,12 +22,14 @@ __all__ = [
     "keywords",
     "last_modified",
     "search",
+    "set_api_cache_maxsize",
     "svg",
     "svg_path",
 ]
 
 from ._cache import clear_cache, get_cache_directory
 from .api import (
+    clear_api_cache,
     collection,
     collections,
     css,
@@ -35,6 +38,7 @@ from .api import (
     keywords,
     last_modified,
     search,
+    set_api_cache_maxsize,
     svg,
     svg_path,
 )

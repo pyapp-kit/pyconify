@@ -112,3 +112,14 @@ def test_search() -> None:
 
 def test_iconify_version() -> None:
     assert isinstance(pyconify.iconify_version(), str)
+
+
+def test_clear_api_cache() -> None:
+    assert pyconify.collections.cache_info().currsize > 0
+    assert pyconify.collections.cache_info().maxsize == 128
+
+    pyconify.clear_api_cache()
+    pyconify.set_api_cache_maxsize(10)
+
+    assert pyconify.collections.cache_info().currsize == 0
+    assert pyconify.collections.cache_info().maxsize == 10
