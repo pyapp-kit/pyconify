@@ -10,72 +10,148 @@ on:
     # run every week (for --pre release tests)
     - cron: "0 0 * * 0"
 
+# cancel in-progress runs that use the same workflow and branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# no permissions by default, each job declares what it needs
+permissions: {}
+
 jobs:
+  lint:
+    name: 🧹 prek
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: j178/prek-action@44924fe9ef4a6f88253c4b6b1bf11c689d3ce53d # v3.1.0
+
   test:
-    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v2
-    secrets: inherit
-    with:
-      os: ${{ matrix.os }}
-      python-version: ${{ matrix.python-version }}
-      pip-install-pre-release: ${{ github.event_name == 'schedule' }}
-      report-failures: ${{ github.event_name == 'schedule' }}
+    name: ${{ matrix.platform }} (${{ matrix.python-version }}) [${{ matrix.resolution }}] ${{ matrix.qt }}
+    runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: read
+      issues: write  # to open an issue on --pre failures
+    env:
+      UV_PRERELEASE: ${{ github.event_name == 'schedule' && 'allow' || 'if-necessary-or-explicit' }}
+      UV_RESOLUTION: ${{ matrix.resolution }}
+      PYTEST_ADDOPTS: ${{ matrix.resolution == 'lowest-direct' && '-W ignore' || '' }}
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
-        os: [ubuntu-latest]
+        platform: [ubuntu-latest]
+        resolution: [highest]
         include:
           - python-version: "3.11"
-            os: windows-latest
+            platform: windows-latest
+            resolution: highest
           - python-version: "3.11"
-            os: macos-latest
+            platform: macos-latest
+            resolution: highest
+          # minimum stated dependencies
+          - python-version: "3.11"
+            platform: ubuntu-latest
+            resolution: lowest-direct
+          # these add a Qt binding to an existing job (for test_freedesktop_qt),
+          # one Qt5 and one Qt6
+          - python-version: "3.11"
+            platform: ubuntu-latest
+            resolution: highest
+            qt: pyqt5
+          - python-version: "3.14"
+            platform: ubuntu-latest
+            resolution: highest
+            qt: pyside6
 
-  test-qt:
-    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v2
-    secrets: inherit
-    with:
-      os: ubuntu-latest
-      python-version: "3.11"
-      qt: ${{ matrix.qt }}
-      pytest-args: "-k Py"
-      pip-install-pre-release: ${{ github.event_name == 'schedule' }}
-      report-failures: ${{ github.event_name == 'schedule' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        qt: ["PyQt5", "PyQt6", "PySide2", "PySide6"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-  deploy:
-    name: Deploy
+      - name: 🐍 Set up Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up headless display for Qt
+        if: matrix.qt
+        uses: pyvista/setup-headless-display-action@c103a2ff45650d38cb71684b5dc6cdfeb9442c79 # v5.1.0
+        with:
+          qt: true
+
+      - name: Install Dependencies
+        shell: bash
+        env:
+          QT: ${{ matrix.qt }}
+        run: uv sync --no-dev --group test ${QT:+--group "$QT"}
+
+      - name: 🧪 Run Tests
+        run: uv run --no-sync pytest --cov --cov-report=xml --cov-report=term-missing
+
+      # If something goes wrong with --pre tests, open (or update) an issue in the repo
+      - name: 📝 Report --pre Failures
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLATFORM: ${{ matrix.platform }}
+          PYTHON: ${{ matrix.python-version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: "[test-bot] pip install --pre is failing"
+        shell: bash
+        run: |
+          BODY="The most recent failing test was on $PLATFORM py$PYTHON with commit $GITHUB_SHA.
+          Full run: $RUN_URL"
+          NUMBER=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
+          if [ -n "$NUMBER" ]; then
+            gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label bug --body "$BODY"
+          fi
+
+      - name: Coverage
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  build-and-inspect-package:
+    name: Build & inspect package.
     needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: hynek/build-and-inspect-python-package@67230f7b8410ae0052b39c1efc89d89fff43ff10 # v3.0.2
+
+  upload-to-pypi:
+    name: Upload package to PyPI
+    needs: build-and-inspect-package
     if: success() && startsWith(github.ref, 'refs/tags/') && github.event_name != 'schedule'
     runs-on: ubuntu-latest
     permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing on PyPi
+      # see https://docs.pypi.org/trusted-publishers/
       id-token: write
+      # This permission allows writing releases
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - name: Download built artifact to dist/
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          fetch-depth: 0
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.x"
-
-      - name: 👷 Build
-        run: |
-          python -m pip install build
-          python -m build
-
+          name: Packages
+          path: dist
       - name: 🚢 Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
-      - uses: softprops/action-gh-release@v3
-        with:
-          generate_release_notes: true
-          files: "./dist/*"
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+      - name: 🚀 Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes dist/*
