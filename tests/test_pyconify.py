@@ -16,7 +16,7 @@ def test_collection() -> None:
     assert isinstance(result, dict)
     assert result["prefix"] == "geo"
 
-    with pytest.raises(IOError, match="Icon set 'not' not found."):
+    with pytest.raises(IOError, match=r"Icon set 'not' not found\."):
         pyconify.collection("not")
 
 
@@ -36,7 +36,7 @@ def test_svg() -> None:
     assert isinstance(result, bytes)
     assert result.startswith(b"<svg")
 
-    with pytest.raises(IOError, match="Icon 'not:found' not found."):
+    with pytest.raises(IOError, match=r"Icon 'not:found' not found\."):
         pyconify.svg("not", "found")
 
 
@@ -74,7 +74,7 @@ def test_css() -> None:
     )
     assert result2.startswith("common")
 
-    with pytest.raises(IOError, match="Icon set 'not' not found."):
+    with pytest.raises(IOError, match=r"Icon set 'not' not found\."):
         pyconify.css("not:found")
 
     with pytest.warns(UserWarning, match=r"Icon\(s\) \['nor-this', 'not-an-icon'\]"):
