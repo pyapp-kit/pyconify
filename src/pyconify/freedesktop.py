@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING, Any
 from pyconify.api import svg
 
 if TYPE_CHECKING:
-    from typing_extensions import Required, TypedDict, Unpack
+    from typing import Required
+
+    from typing_extensions import TypedDict, Unpack
 
     from .iconify_types import Flip, Rotation
 

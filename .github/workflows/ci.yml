@@ -26,12 +26,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
         os: [ubuntu-latest]
         include:
-          - python-version: "3.9"
+          - python-version: "3.11"
             os: windows-latest
-          - python-version: "3.9"
+          - python-version: "3.11"
             os: macos-latest
 
   test-qt:
@@ -39,7 +39,7 @@ jobs:
     secrets: inherit
     with:
       os: ubuntu-latest
-      python-version: "3.10"
+      python-version: "3.11"
       qt: ${{ matrix.qt }}
       pytest-args: "-k Py"
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
@@ -58,12 +58,12 @@ jobs:
       id-token: write
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
@@ -75,7 +75,7 @@ jobs:
       - name: 🚢 Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           files: "./dist/*"
