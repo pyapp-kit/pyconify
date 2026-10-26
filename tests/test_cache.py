@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
@@ -60,7 +60,7 @@ def test_tmp_svg_with_fixture() -> None:
 
 
 @contextmanager
-def internet_offline() -> Iterator[None]:
+def internet_offline() -> Generator[None]:
     """Simulate an offline internet connection."""
     session = api._session()
     with patch.object(session, "get") as mock:
