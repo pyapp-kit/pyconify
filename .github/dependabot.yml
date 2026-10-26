@@ -6,9 +6,23 @@ updates:
     directory: "/"
     schedule:
       interval: "quarterly"
+    # wait a week before proposing a newly released version
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]
     commit-message:
       prefix: "ci(dependabot):"
+
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "quarterly"
+    cooldown:
+      default-days: 7
     groups:
-      actions:
-        patterns:
-          - "*"
+      pre-commit:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci(dependabot):"

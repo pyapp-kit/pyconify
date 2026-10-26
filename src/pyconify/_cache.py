@@ -19,7 +19,7 @@ def svg_cache() -> MutableMapping[str, bytes]:  # pragma: no cover
         else:
             try:
                 _SVG_CACHE = _SVGCache()
-            except Exception:
+            except Exception:  # noqa: BLE001  # fall back to in-memory cache
                 _SVG_CACHE = {}
             with suppress(OSError):
                 _delete_stale_svgs(_SVG_CACHE)
@@ -77,13 +77,13 @@ class _SVGCache(MutableMapping[str, bytes]):
             directory = get_cache_directory() / "svg_cache"  # pragma: no cover
         self.path = Path(directory).expanduser().resolve()
         self.path.mkdir(parents=True, exist_ok=True)
-        self._extention = ".svg"
+        self._extension = ".svg"
 
     def path_for(self, _key: str) -> Path:
-        return self.path.joinpath(f"{_key}{self._extention}")
+        return self.path.joinpath(f"{_key}{self._extension}")
 
     def _svg_files(self) -> Iterator[Path]:
-        yield from self.path.glob(f"*{self._extention}")
+        yield from self.path.glob(f"*{self._extension}")
 
     def __setitem__(self, _key: str, _value: bytes) -> None:
         self.path_for(_key).write_bytes(_value)

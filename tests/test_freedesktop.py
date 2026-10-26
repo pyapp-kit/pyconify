@@ -9,7 +9,9 @@ from pyconify import freedesktop_theme
 if TYPE_CHECKING:
     from pathlib import Path
 
-ICONS = {
+    from pyconify.freedesktop import SVGKwargsWithKey
+
+ICONS: dict[str, str | SVGKwargsWithKey] = {
     "edit-clear": "ic:sharp-clear",
     "edit-delete": {"key": "ic:sharp-delete", "color": "red"},
     "weather-overcast": "ic:sharp-cloud",

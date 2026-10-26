@@ -1,8 +1,9 @@
 # https://peps.python.org/pep-0517/
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling>=1.27", "hatch-vcs"]
 build-backend = "hatchling.build"
 
+# https://hatch.pypa.io/latest/config/metadata/
 [tool.hatch.version]
 source = "vcs"
 
@@ -13,8 +14,11 @@ dynamic = ["version"]
 description = "iconify for python. Universal icon framework"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "BSD-3-Clause" }
+# https://peps.python.org/pep-0639/
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [{ name = "Talley Lambert", email = "talley.lambert@gmail.com" }]
+# https://pypi.org/classifiers/
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
@@ -23,38 +27,51 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.15",
-    "License :: OSI Approved :: BSD License",
     "Typing :: Typed",
 ]
-dependencies = ["requests"]
-
-[project.optional-dependencies]
-test = ["pytest", "pytest-cov"]
-dev = ["black", "ipython", "mypy", "pdbpp", "rich", "ruff", "types-requests"]
+dependencies = ["requests>=2.30"]
 
 [project.urls]
 homepage = "https://github.com/pyapp-kit/pyconify"
 repository = "https://github.com/pyapp-kit/pyconify"
 
-# https://beta.ruff.rs/docs/rules/
+# https://peps.python.org/pep-0735/
+# setup with `uv sync` or `pip install -e . --group dev`
+[dependency-groups]
+test = ["pytest>=9.0", "pytest-cov>=7.0"]
+dev = [
+    { include-group = "test" },
+    "ipython>=9.0",
+    "prek>=0.5",  # https://prek.j178.dev/
+    "rich>=14.0",
+    "ruff>=0.17",
+    "ty>=0.0.92",
+    "types-requests>=2.32",
+]
+
+# https://docs.astral.sh/ruff
 [tool.ruff]
 line-length = 88
-target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
 pydocstyle = { convention = "numpy" }
-select = [
-    "W",    # style warnings
+# ruff's default rule set is already extensive (F, E7/E9, B, UP, C4, SIM, PERF,
+# PTH, FURB, RUF, ...). See https://docs.astral.sh/ruff/default-rules/
+# the following are added on top of the defaults.
+extend-select = [
     "E",    # style errors
+    "W",    # style warnings
     "F",    # flakes
     "D",    # pydocstyle
+    "D417", # Missing argument descriptions in Docstrings
     "I",    # isort
     "UP",   # pyupgrade
     "S",    # bandit
-    "C4",   # comprehensions
-    "B",    # bugbear
-    "A001", # Variable shadowing a python builtin
+    "C4",   # flake8-comprehensions
+    "B",    # flake8-bugbear
+    "A001", # flake8-builtins
+    "ANN",  # flake8-annotations (replaces mypy's disallow_untyped_defs)
     "TC",   # flake8-type-checking
     "TID",  # flake8-tidy-imports
     "RUF",  # ruff-specific rules
@@ -62,30 +79,34 @@ select = [
     "SLF",  # private access
 ]
 ignore = [
-    "D100", # Missing docstring in public module
-    "D401", # First line should be in imperative mood (remove to opt in)
+    "D100",   # Missing docstring in public module
+    "D401",   # First line should be in imperative mood (remove to opt in)
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["D", "S101", "E501", "SLF"]
 
-# https://mypy.readthedocs.io/en/stable/config_file.html
-[tool.mypy]
-files = "src/**/"
-strict = true
-disallow_any_generics = false
-disallow_subclassing_any = false
-show_error_codes = true
-pretty = true
-enable_incomplete_feature = ["Unpack"]
+# https://docs.astral.sh/ruff/formatter/
+[tool.ruff.format]
+docstring-code-format = true
+skip-magic-trailing-comma = false  # default is false
 
-# https://docs.pytest.org/en/6.2.x/customize.html
-[tool.pytest.ini_options]
-minversion = "6.0"
+# https://docs.pytest.org/en/stable/reference/customize.html#pyproject-toml
+[tool.pytest]
+minversion = "9.0"
+addopts = ["--color=yes"]
 testpaths = ["tests"]
 filterwarnings = ["error"]
 
-# https://coverage.readthedocs.io/en/6.4/config.html
+# https://docs.astral.sh/ty/reference/configuration/
+[tool.ty.environment]
+root = ["./src"]
+
+[tool.ty.terminal]
+error-on-warning = true
+
+# https://coverage.readthedocs.io/
 [tool.coverage.report]
 show_missing = true
 exclude_lines = [
@@ -93,9 +114,14 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@overload",
     "except ImportError",
+    "raise AssertionError",
     "\\.\\.\\.",
     "raise NotImplementedError()",
 ]
 
 [tool.coverage.run]
 source = ["pyconify"]
+
+# https://github.com/crate-ci/typos/blob/master/docs/reference.md
+[tool.typos.default]
+extend-ignore-identifiers-re = []

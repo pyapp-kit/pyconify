@@ -104,6 +104,7 @@ def freedesktop_theme(
     ```python
     from pyconify import freedesktop_theme
     from pyconify.api import svg
+
     icons = {
         "edit-copy": "ic:sharp-content-copy",
         "edit-delete": {"key": "ic:sharp-delete", "color": "red"},
@@ -120,7 +121,7 @@ def freedesktop_theme(
 
     This will create a folder structure as shown below.  Note that the `index.theme`
     file is also created, and files are placed in the appropriate freedesktop
-    sub-directories. Unkown keys (like 'bell' in the example above) are placed in the
+    sub-directories. Unknown keys (like 'bell' in the example above) are placed in the
     "other" directory.
 
     ```

@@ -107,7 +107,7 @@ def collections(*prefixes: str) -> dict[str, IconifyInfo]:
     query_params = {"prefixes": ",".join(prefixes)}
     resp = _session().get(f"{ROOT}/collections", params=query_params, timeout=2)
     resp.raise_for_status()
-    return resp.json()  # type: ignore
+    return resp.json()
 
 
 @functools.lru_cache(maxsize=128)
@@ -145,7 +145,7 @@ def collection(
             "Search for icons at https://icon-sets.iconify.design",
         )
     resp.raise_for_status()
-    return resp.json()  # type: ignore
+    return resp.json()
 
 
 @functools.cache
@@ -177,7 +177,7 @@ def last_modified(*prefixes: str) -> dict[str, int]:
         raise ValueError(
             f"Unexpected response from API: {content}. Expected 'lastModified'."
         )
-    return content["lastModified"]  # type: ignore
+    return content["lastModified"]
 
 
 # this function uses a special cache inside the body of the function
@@ -483,7 +483,7 @@ def icon_data(*keys: str) -> IconifyJSON:
             "Search for icons at https://icon-sets.iconify.design",
         )
     resp.raise_for_status()
-    return content  # type: ignore
+    return content
 
 
 def search(
@@ -527,7 +527,7 @@ def search(
         Search string. Case insensitive.
     limit : int, optional
         Maximum number of items in response, default is 64. Min 32, max 999.
-        If numer of icons in result matches limit, it means there are more icons to
+        If number of icons in result matches limit, it means there are more icons to
         show.
     start : int, optional
         Start index for results, default is 0.
@@ -551,7 +551,7 @@ def search(
         params["category"] = category
     resp = _session().get(f"{ROOT}/search?query={query}", params=params, timeout=2)
     resp.raise_for_status()
-    return resp.json()  # type: ignore
+    return resp.json()
 
 
 def keywords(
@@ -588,7 +588,7 @@ def keywords(
         params = {}
     resp = _session().get(f"{ROOT}/keywords", params=params, timeout=2)
     resp.raise_for_status()
-    return resp.json()  # type: ignore
+    return resp.json()
 
 
 @functools.cache

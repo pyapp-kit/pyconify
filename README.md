@@ -138,3 +138,34 @@ would create
 │       └── bell.svg
 └── index.theme
 ```
+
+## Development
+
+The easiest way to get started is to use the [github cli](https://cli.github.com)
+and [uv](https://docs.astral.sh/uv/getting-started/installation/):
+
+```sh
+gh repo fork pyapp-kit/pyconify --clone
+# or just
+# gh repo clone pyapp-kit/pyconify
+cd pyconify
+uv sync
+```
+
+Run tests:
+
+```sh
+uv run pytest
+```
+
+Lint and type-check files (using [prek](https://prek.j178.dev/)):
+
+```sh
+uv run prek run --all-files
+```
+
+To run the hooks automatically on every commit:
+
+```sh
+uv run prek install
+```
