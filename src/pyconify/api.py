@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, overload
 from ._cache import CACHE_DISABLED, _SVGCache, cache_key, svg_cache
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-    from typing import Callable, TypeVar
+    from collections.abc import Callable, Iterable
+    from typing import TypeVar
 
     import requests
 
