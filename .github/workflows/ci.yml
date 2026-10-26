@@ -63,11 +63,11 @@ jobs:
           - python-version: "3.11"
             platform: ubuntu-latest
             resolution: highest
-            qt: pyqt5
+            qt: PyQt5
           - python-version: "3.14"
             platform: ubuntu-latest
             resolution: highest
-            qt: pyside6
+            qt: PySide6
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,10 +86,13 @@ jobs:
           qt: true
 
       - name: Install Dependencies
-        shell: bash
+        run: uv sync --no-dev --group test
+
+      - name: Install ${{ matrix.qt }}
+        if: matrix.qt
         env:
           QT: ${{ matrix.qt }}
-        run: uv sync --no-dev --group test ${QT:+--group "$QT"}
+        run: uv pip install "$QT"
 
       - name: 🧪 Run Tests
         run: uv run --no-sync pytest --cov --cov-report=xml --cov-report=term-missing

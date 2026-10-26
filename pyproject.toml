@@ -39,9 +39,6 @@ repository = "https://github.com/pyapp-kit/pyconify"
 # setup with `uv sync` or `pip install -e . --group dev`
 [dependency-groups]
 test = ["pytest>=9.0", "pytest-cov>=7.0"]
-# Qt bindings, only used by tests/test_freedesktop.py::test_freedesktop_qt
-pyqt5 = ["pyqt5>=5.15.10"]
-pyside6 = ["pyside6>=6.8"]
 dev = [
     { include-group = "test" },
     "ipython>=9.0",
